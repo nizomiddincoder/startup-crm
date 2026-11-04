@@ -1,0 +1,105 @@
+/*
+ * DESIGN TOKENS — loyihadagi barcha ranglar, radiuslar va shriftlar shu yerda.
+ * Komponentlarda hech qachon to'g'ridan-to'g'ri rang (#fff, bg-blue-500 va h.k.) yozilmaydi,
+ * faqat token nomlari ishlatiladi: bg-primary, text-muted-foreground, border-border ...
+ *
+ * Uslub: och yashil-kulrang fon, oq kartochkalar, to'q yashil (teal) asosiy rang,
+ * yumaloq burchaklar, yumshoq soyalar. (Dizayn referensi bo'yicha, 2026-10-25)
+ */
+
+:root {
+  /* Shriftlar (app/layout.tsx'dagi next/font o'zgaruvchilariga bog'langan) */
+  --font-family-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius: 0.75rem;
+
+  /* Sahifa foni — och yashil-kulrang; kartochkalar — oq */
+  --background: oklch(0.958 0.008 170);
+  --foreground: oklch(0.22 0.012 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.012 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.012 250);
+
+  /* Asosiy — to'q yashil (tugmalar, narxlar, faol filtr). Oq matn bilan kontrast ≥ 4.5:1 */
+  --primary: oklch(0.52 0.1 168);
+  --primary-foreground: oklch(0.99 0 0);
+  /* Kulrang "chip"lar va ikkinchi darajali tugmalar */
+  --secondary: oklch(0.955 0.003 170);
+  --secondary-foreground: oklch(0.32 0.012 250);
+  --muted: oklch(0.965 0.003 170);
+  --muted-foreground: oklch(0.5 0.012 250);
+  /* Och yashil fon (faol menyu, tanlangan qator) */
+  --accent: oklch(0.95 0.03 168);
+  --accent-foreground: oklch(0.42 0.09 168);
+  --border: oklch(0.915 0.006 170);
+  --input: oklch(0.89 0.007 170);
+  --ring: oklch(0.52 0.1 168);
+
+  /* Holat ranglari */
+  --success: oklch(0.52 0.1 168);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.88 0.12 85);
+  --warning-foreground: oklch(0.35 0.07 70);
+  --destructive: oklch(0.6 0.2 25);
+
+  /* Kartochka soyasi */
+  --card-shadow: 0 1px 2px oklch(0.22 0.012 250 / 4%), 0 2px 8px oklch(0.22 0.012 250 / 4%);
+
+  /* Grafiklar */
+  --chart-1: oklch(0.52 0.1 168);
+  --chart-2: oklch(0.7 0.1 168);
+  --chart-3: oklch(0.6 0.12 230);
+  --chart-4: oklch(0.75 0.13 80);
+  --chart-5: oklch(0.6 0.2 25);
+
+  /* Chap menyu */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.5 0.012 250);
+  --sidebar-primary: oklch(0.52 0.1 168);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.03 168);
+  --sidebar-accent-foreground: oklch(0.42 0.09 168);
+  --sidebar-border: oklch(0.915 0.006 170);
+  --sidebar-ring: oklch(0.52 0.1 168);
+}
+
+.dark {
+  --background: oklch(0.17 0.008 200);
+  --foreground: oklch(0.96 0.003 170);
+  --card: oklch(0.22 0.008 200);
+  --card-foreground: oklch(0.96 0.003 170);
+  --popover: oklch(0.22 0.008 200);
+  --popover-foreground: oklch(0.96 0.003 170);
+  --primary: oklch(0.66 0.11 168);
+  --primary-foreground: oklch(0.15 0.01 200);
+  --secondary: oklch(0.27 0.008 200);
+  --secondary-foreground: oklch(0.9 0.005 170);
+  --muted: oklch(0.25 0.008 200);
+  --muted-foreground: oklch(0.7 0.01 200);
+  --accent: oklch(0.3 0.05 168);
+  --accent-foreground: oklch(0.85 0.08 168);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.66 0.11 168);
+  --success: oklch(0.66 0.11 168);
+  --success-foreground: oklch(0.15 0.01 200);
+  --warning: oklch(0.8 0.13 85);
+  --warning-foreground: oklch(0.2 0.03 70);
+  --destructive: oklch(0.68 0.19 25);
+  --card-shadow: 0 1px 2px oklch(0 0 0 / 30%);
+  --chart-1: oklch(0.66 0.11 168);
+  --chart-2: oklch(0.75 0.1 168);
+  --chart-3: oklch(0.65 0.12 230);
+  --chart-4: oklch(0.8 0.13 80);
+  --chart-5: oklch(0.68 0.19 25);
+  --sidebar: oklch(0.21 0.008 200);
+  --sidebar-foreground: oklch(0.75 0.01 200);
+  --sidebar-primary: oklch(0.66 0.11 168);
+  --sidebar-primary-foreground: oklch(0.15 0.01 200);
+  --sidebar-accent: oklch(0.3 0.05 168);
+  --sidebar-accent-foreground: oklch(0.85 0.08 168);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.66 0.11 168);
+}

@@ -1,0 +1,17 @@
+# Lokal PostgreSQL (faqat ishlab chiqish uchun). Ishga tushirish: npm run db:up
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kassa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kassa
+      POSTGRES_PASSWORD: kassa
+      POSTGRES_DB: kassa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

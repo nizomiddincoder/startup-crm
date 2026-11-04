@@ -1,0 +1,7 @@
+# railway up — serverga yuklanmaydigan fayllar (.gitignore ham hisobga olinadi)
+.local-db
+.next
+node_modules
+test-results
+playwright-report
+.env

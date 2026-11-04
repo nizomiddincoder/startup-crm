@@ -1,0 +1,844 @@
+// Ma'lumotlar bazasi sxemasi.
+// Qoidalar: har bir biznes jadvalida `tenantId` bor; pul — Int (so'm); miqdor — Decimal.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// SUPER_ADMIN — platforma egasi (biz). Qolganlari — do'kon xodimlari.
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+  WAREHOUSE
+}
+
+// Tenant = bitta do'kon (SaaS mijozi)
+model Tenant {
+  id                 String    @id @default(cuid())
+  name               String
+  isActive           Boolean   @default(true)
+  // Chek sarlavhasi uchun
+  address            String?
+  phone              String?
+  // Chek va smeta raqamlari har do'konda 1 dan boshlanadi (tranzaksiyada oshiriladi)
+  lastSaleNumber     Int       @default(0)
+  lastEstimateNumber Int       @default(0)
+  lastStockDocNumber Int       @default(0)
+  lastReturnNumber   Int       @default(0)
+  lastShiftNumber    Int       @default(0)
+  lastOrderNumber    Int       @default(0)
+  // Mijozlarga bonus ball (keshbek): xariddan foiz. null — o'chiq
+  cashbackPercent    Decimal?  @db.Decimal(5, 2)
+  // Saytda o'zi ro'yxatdan o'tgan do'kon — bepul sinov tugash sanasi (admin yaratganida — null)
+  trialEndsAt        DateTime?
+  // Tarif (lib/pricing.ts PlanId) va o'chirilgan modullar (lib/modules.ts). Bo'sh — hammasi yoqiq
+  plan               String    @default("custom")
+  modulesOff         String[]  @default([])
+  // Do'kon sozlamalari (egasi): chek oxiridagi matn, qoldiqdan ortiq sotishga ruxsat
+  receiptFooter      String?
+  allowNegativeStock Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  stockDocuments        StockDocument[]
+  stockDocumentItems    StockDocumentItem[]
+  users                 User[]
+  categories            Category[]
+  products              Product[]
+  sales                 Sale[]
+  saleItems             SaleItem[]
+  salePayments          SalePayment[]
+  estimates             Estimate[]
+  estimateItems         EstimateItem[]
+  stockMovements        StockMovement[]
+  customers             Customer[]
+  ledgerEntries         LedgerEntry[]
+  telegramLinkCodes     TelegramLinkCode[]
+  telegramDispatches    TelegramDispatch[]
+  reminderLogs          ReminderLog[]
+  saleReturns           SaleReturn[]
+  saleReturnItems       SaleReturnItem[]
+  cashShifts            CashShift[]
+  customerVerifications CustomerVerification[]
+  supportRequests       SupportRequest[]
+  productImages         ProductImage[]
+  aiGenerations         AiGeneration[]
+  promotions            Promotion[]
+  orders                Order[]
+}
+
+model User {
+  id                String    @id @default(cuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name              String
+  // Login telefon raqami bilan, shuning uchun butun tizimda yagona. Format: +998901234567
+  phone             String    @unique
+  // Ixtiyoriy: parolni tiklash havolasi uchun (kichik harflarda saqlanadi)
+  email             String?   @unique
+  passwordHash      String
+  role              Role      @default(CASHIER)
+  isActive          Boolean   @default(true)
+  // Dasturdagi "Yangiliklar": shu vaqtdan keyin chiqqanlari — o'qilmagan
+  newsSeenAt        DateTime?
+  // Shu vaqtdan oldin ochilgan BARCHA sessiyalari yaroqsiz (yangi parol berilganda)
+  sessionsValidFrom DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  sales          Sale[]
+  estimates      Estimate[]
+  stockMovements StockMovement[]
+  stockDocuments StockDocument[]
+  ledgerEntries  LedgerEntry[]
+  saleReturns    SaleReturn[]
+  cashShifts     CashShift[]
+
+  // Telegram: xodim botga ulanganda yoziladi (kunlik hisobot va eslatmalar uchun)
+  telegramChatId       String?            @unique
+  telegramReports      Boolean            @default(true)
+  telegramReminders    Boolean            @default(true)
+  // Telegram ulangan bo'lsa — har kirishni botda tasdiqlash (o'chirib qo'yish mumkin)
+  telegramLoginConfirm Boolean            @default(true)
+  telegramLinkCodes    TelegramLinkCode[]
+  loginChallenges      LoginChallenge[]
+  supportRequests      SupportRequest[]
+  passwordResets       PasswordReset[]
+
+  @@index([tenantId])
+}
+
+// O'lchov birliklari. Nomlari lib/i18n/uz.ts → units bo'limida.
+enum Unit {
+  PIECE // dona
+  METER // metr
+  SQ_METER // m²
+  CUBIC_METER // m³
+  KG // kilogramm
+  TON // tonna
+  LITER // litr
+  BAG // qop
+  PACK // pachka
+  ROLL // rulon
+  SHEET // list
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products   Product[]
+  promotions Promotion[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name         String
+  unit         Unit           @default(PIECE)
+  // Pul — so'mda, butun son
+  salePrice    Int
+  costPrice    Int?
+  // Shtrix-kod do'kon ichida yagona (bo'sh bo'lishi mumkin)
+  barcode      String?
+  // Qoldiq shundan kam bo'lsa "kam qoldi" deb belgilanadi (ixtiyoriy)
+  minStock     Decimal?       @db.Decimal(14, 3)
+  // Sotuvlarda ishlatilgani uchun o'chirilmaydi, arxivlanadi
+  isActive     Boolean        @default(true)
+  // Rasm versiyasi: 0 — rasm yo'q; har o'zgarishda oshadi (rasm manzilidagi ?v= — kesh yangilanadi)
+  imageVersion Int            @default(0)
+  images       ProductImage[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  saleItems          SaleItem[]
+  estimateItems      EstimateItem[]
+  stockMovements     StockMovement[]
+  stockDocumentItems StockDocumentItem[]
+  promotions         Promotion[]
+  orderItems         OrderItem[]
+
+  @@unique([tenantId, barcode])
+  @@index([tenantId, isActive])
+  @@index([tenantId, categoryId])
+}
+
+enum PaymentMethod {
+  CASH // naqd
+  CARD // karta (Uzcard/Humo terminali)
+  TRANSFER // bank o'tkazmasi
+  DEBT // nasiya (mijoz qarzi)
+  POINTS // mijozning bonus ballari bilan
+}
+
+// Ombor harakati turi
+enum MovementType {
+  SALE // sotuv (chiqim)
+  RECEIPT // kirim (yetkazib beruvchidan)
+  WRITE_OFF // hisobdan chiqarish (singan, yo'qolgan)
+  ADJUSTMENT // inventarizatsiya tuzatishi (+ yoki -)
+  RETURN // mijoz qaytargan tovar (kirim)
+}
+
+enum StockDocumentType {
+  RECEIPT
+  WRITE_OFF
+  INVENTORY
+}
+
+enum EstimateStatus {
+  OPEN // ochiq, mijoz o'ylab ko'ryapti
+  CONVERTED // sotuvga aylantirildi
+  CANCELLED
+}
+
+model Sale {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Do'kon ichidagi chek raqami: 1, 2, 3 ...
+  number       Int
+  cashierId    String
+  cashier      User      @relation(fields: [cashierId], references: [id])
+  estimateId   String?   @unique
+  estimate     Estimate? @relation(fields: [estimateId], references: [id])
+  // Pul — so'mda. total = subtotal - discount
+  subtotal     Int
+  discount     Int       @default(0)
+  total        Int
+  // Mijoz bergan naqd pul va qaytim (chek uchun)
+  cashReceived Int       @default(0)
+  change       Int       @default(0)
+  // Xaridor (nasiya uchun majburiy) va mijozni olib kelgan usta (bonus uchun)
+  customerId   String?
+  customer     Customer? @relation("SaleCustomer", fields: [customerId], references: [id])
+  masterId     String?
+  master       Customer? @relation("SaleMaster", fields: [masterId], references: [id])
+  createdAt    DateTime  @default(now())
+
+  items         SaleItem[]
+  payments      SalePayment[]
+  ledgerEntries LedgerEntry[]
+  returns       SaleReturn[]
+  order         Order?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, createdAt])
+}
+
+// Sotuv qatori. Nomi, birligi va narxi sotuv paytidagi holatda saqlanadi.
+model SaleItem {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  unit      Unit
+  quantity  Decimal @db.Decimal(14, 3)
+  price     Int
+  total     Int
+
+  stockMovements StockMovement[]
+  returnItems    SaleReturnItem[]
+
+  @@index([tenantId, saleId])
+}
+
+model SalePayment {
+  id       String        @id @default(cuid())
+  tenantId String
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  saleId   String
+  sale     Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  method   PaymentMethod
+  // Qaytimsiz, kassaga haqiqatda tushgan summa. Barcha to'lovlar yig'indisi = sale.total
+  amount   Int
+
+  @@index([tenantId, saleId])
+}
+
+// Ombor qoldig'i FAQAT shu jadval orqali o'zgaradi. Qoldiq = quantity yig'indisi.
+// Chiqim — manfiy, kirim — musbat.
+model StockMovement {
+  id             String             @id @default(cuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product            @relation(fields: [productId], references: [id])
+  type           MovementType
+  quantity       Decimal            @db.Decimal(14, 3)
+  saleItemId     String?
+  saleItem       SaleItem?          @relation(fields: [saleItemId], references: [id])
+  documentItemId String?
+  documentItem   StockDocumentItem? @relation(fields: [documentItemId], references: [id])
+  returnItemId   String?
+  returnItem     SaleReturnItem?    @relation(fields: [returnItemId], references: [id])
+  userId         String
+  user           User               @relation(fields: [userId], references: [id])
+  createdAt      DateTime           @default(now())
+
+  @@index([tenantId, productId])
+}
+
+// Smeta — mijoz uchun narx hisob-kitobi. Keyin sotuvga aylantirilishi mumkin.
+model Estimate {
+  id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number        Int
+  status        EstimateStatus @default(OPEN)
+  customerName  String?
+  customerPhone String?
+  note          String?
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  subtotal      Int
+  discount      Int            @default(0)
+  total         Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  items EstimateItem[]
+  sale  Sale?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, createdAt])
+}
+
+model EstimateItem {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  name       String
+  unit       Unit
+  quantity   Decimal  @db.Decimal(14, 3)
+  price      Int
+  total      Int
+
+  @@index([tenantId, estimateId])
+}
+
+// Ombor hujjati: kirim, hisobdan chiqarish yoki inventarizatsiya.
+// Har bir qator bitta StockMovement yaratadi (inventarizatsiyada farq 0 bo'lsa — yaratmaydi).
+model StockDocument {
+  id           String            @id @default(cuid())
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type         StockDocumentType
+  // Do'kon ichidagi hujjat raqami (barcha turlar uchun bitta ketma-ketlik)
+  number       Int
+  // Kirim: yetkazib beruvchi nomi (P4'da oddiy matn)
+  supplierName String?
+  // Hisobdan chiqarish: sababi; boshqalarda — izoh
+  note         String?
+  createdById  String
+  createdBy    User              @relation(fields: [createdById], references: [id])
+  createdAt    DateTime          @default(now())
+
+  items StockDocumentItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, type, createdAt])
+}
+
+model StockDocumentItem {
+  id         String        @id @default(cuid())
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documentId String
+  document   StockDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id])
+  // Kirim / chiqarish: miqdor (musbat). Inventarizatsiya: sanalgan miqdor
+  quantity   Decimal       @db.Decimal(14, 3)
+  // Inventarizatsiya: tizimdagi qoldiq (sanash paytida)
+  expected   Decimal?      @db.Decimal(14, 3)
+  // Kirim: bir birlik kelish narxi (so'm)
+  costPrice  Int?
+
+  stockMovements StockMovement[]
+
+  @@index([tenantId, documentId])
+}
+
+// Mijoz: oddiy xaridor yoki usta (ustalar mijoz olib kelgani uchun bonus oladi).
+model Customer {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  // Format: +998901234567. Do'kon ichida yagona (bo'sh bo'lishi mumkin)
+  phone           String?
+  note            String?
+  // Nasiya limiti (so'm). null — limitsiz
+  creditLimit     Int?
+  // Shaxsiy chegirma (%): kassada mijoz tanlansa — avtomatik
+  discountPercent Decimal? @db.Decimal(5, 2)
+  isMaster        Boolean  @default(false)
+  // Usta bonusi: sotuv summasidan foiz, masalan 3.00
+  bonusPercent    Decimal? @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchases          Sale[]                 @relation("SaleCustomer")
+  referredSales      Sale[]                 @relation("SaleMaster")
+  ledgerEntries      LedgerEntry[]
+  // Mijoz botga telefon raqamini ulashganda yoziladi. Bir odam bir nechta do'kon mijozi
+  // bo'lishi mumkin — shuning uchun yagona emas
+  telegramChatId     String?
+  // Kassada bot kodi bilan tasdiqlangan vaqt (raqam haqiqatan shu odamniki)
+  telegramVerifiedAt DateTime?
+  reminderLogs       ReminderLog[]
+  verifications      CustomerVerification[]
+  orders             Order[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, isMaster])
+}
+
+// Mijoz hisoblari ikkita:
+//   DEBT  — mijozning do'konga qarzi (nasiya). SALE +, PAYMENT -
+//   BONUS — do'konning ustaga qarzi (bonus). ACCRUAL +, PAYOUT -
+// Qoldiq = amount yig'indisi. Qoldiq ustuni YO'Q (xuddi ombor kabi).
+enum LedgerAccount {
+  DEBT
+  BONUS
+  POINTS // mijozning bonus ballari (1 ball = 1 so'm)
+}
+
+enum LedgerEntryType {
+  SALE // nasiyaga sotuv
+  PAYMENT // qarzni to'lash
+  ACCRUAL // bonus hisoblandi
+  PAYOUT // bonus berildi
+  RETURN // tovar qaytarildi: qarz kamayadi (DEBT) yoki bonus qaytariladi (BONUS)
+  EARN // ball to'plandi (xariddan)
+  REDEEM // ball bilan to'landi
+}
+
+model LedgerEntry {
+  id         String          @id @default(cuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  account    LedgerAccount
+  type       LedgerEntryType
+  // So'm. Hisob qoldig'ini oshirsa musbat, kamaytirsa manfiy
+  amount     Int
+  // To'lov/bonus berish usuli: CASH, CARD, TRANSFER; bonus qarzdan ayirilsa — DEBT
+  method     PaymentMethod?
+  saleId     String?
+  sale       Sale?           @relation(fields: [saleId], references: [id])
+  returnId   String?
+  saleReturn SaleReturn?     @relation(fields: [returnId], references: [id])
+  // Nasiya muddati (faqat DEBT/SALE)
+  dueDate    DateTime?
+  note       String?
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  createdAt  DateTime        @default(now())
+
+  @@index([tenantId, customerId, account])
+  @@index([tenantId, account, dueDate])
+}
+
+// Xodimni botga ulash uchun bir martalik kod (15 daqiqa amal qiladi)
+model TelegramLinkCode {
+  code      String   @id
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+enum TelegramDispatchKind {
+  DAILY_REPORT // kechqurun: kunlik hisobot (egasi/menejer)
+  MORNING_DIGEST // ertalab: muddati kelgan/o'tgan nasiyalar (egasi/menejer) + mijozlarga eslatma
+}
+
+// Rejali xabarlar har do'konga kuniga bir marta yuborilishi uchun (server qayta ishga tushsa ham)
+model TelegramDispatch {
+  id        String               @id @default(cuid())
+  tenantId  String
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind      TelegramDispatchKind
+  // Toshkent sanasi "2026-10-25"
+  day       String
+  createdAt DateTime             @default(now())
+
+  @@unique([tenantId, kind, day])
+}
+
+// Mijozga yuborilgan nasiya eslatmalari (tez-tez yubormaslik uchun)
+model ReminderLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sentAt     DateTime @default(now())
+
+  @@index([tenantId, customerId, sentAt])
+}
+
+// ===== Sotuv sayti arizalari (S2) =====
+// ISTISNO: Lead platformaga tegishli (hali do'kon emas) — tenantId yo'q. Faqat SUPER_ADMIN ko'radi.
+
+enum LeadStatus {
+  NEW // yangi
+  CALLED // qo'ng'iroq qilindi
+  VISIT_SET // uchrashuv belgilandi
+  VISITED // do'konga borildi
+  PILOT // sinovda
+  PAID // to'ladi
+  LOST // yo'qotildi (sababi lostReason'da)
+}
+
+enum LeadCity {
+  FERGANA
+  ANDIJAN
+  NAMANGAN
+  OTHER
+}
+
+// "Chiqish" bosilgan sessiyalar (JWT ichidagi `sid`). Faqat shu qurilmadagi sessiya yopiladi.
+// Brauzerdagi eski cookie qaytib kelsa ham (fondagi so'rovlar uni qayta yozishi mumkin) — server
+// uni qabul qilmaydi. ISTISNO: tenantId yo'q (login tizimi darajasida). Muddati o'tganlari o'chiriladi.
+model RevokedSession {
+  sid       String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  // Format: +998901234567
+  phone        String
+  city         LeadCity
+  shopName     String?
+  businessType String     @default("construction")
+  message      String?
+  // Qaysi forma: "website" (sayt sahifalari), "self_signup" (/register), "pilot" (/pilot)
+  source       String
+  // Reklama belgilari (cookie'dan, 30 kun): ?utm_source=&utm_campaign=&utm_term= (keyword) &ref=
+  utmSource    String?
+  utmCampaign  String?
+  keyword      String?
+  ref          String?
+  status       LeadStatus @default(NEW)
+  lostReason   String?
+  note         String?
+  // Mas'ul xodim (ism, erkin matn)
+  assignee     String?
+  // Oferta va maxfiylik siyosatiga rozilik bergan vaqt (/register'da majburiy)
+  consentAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status, createdAt])
+  @@index([phone, createdAt])
+}
+
+// Mijoz tovarni qaytardi. Qaytarilgan summa sotuv chegirmasiga mutanosib hisoblanadi.
+// Pul qaytarish usuli: CASH / CARD / TRANSFER yoki DEBT (mijozning nasiyasidan ayiriladi).
+model SaleReturn {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Do'kon ichidagi qaytarish raqami: 1, 2, 3 ...
+  number       Int
+  saleId       String
+  sale         Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  total        Int
+  refundMethod PaymentMethod
+  reason       String?
+  createdAt    DateTime      @default(now())
+
+  items         SaleReturnItem[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, saleId])
+}
+
+model SaleReturnItem {
+  id         String     @id @default(cuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnId   String
+  saleReturn SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItemId String
+  saleItem   SaleItem   @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  quantity   Decimal    @db.Decimal(14, 3)
+  amount     Int
+
+  stockMovements StockMovement[]
+
+  @@index([tenantId, saleItemId])
+}
+
+// Kassa smenasi: kassir ochadi (kassadagi naqd bilan) va yopadi (sanalgan naqd bilan).
+// Kutilgan naqd = ochilishdagi naqd + smenadagi naqd tushumlar − naqd chiqimlar (yopilganda qotiriladi).
+model CashShift {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number       Int
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  openedAt     DateTime  @default(now())
+  openingCash  Int
+  closedAt     DateTime?
+  expectedCash Int?
+  countedCash  Int?
+  note         String?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, userId, closedAt])
+}
+
+enum ChallengeStatus {
+  PENDING // botga yuborildi, javob kutilmoqda
+  APPROVED // foydalanuvchi botda tasdiqladi
+  DENIED // "Bu men emas"
+  CONSUMED // kirish amalga oshdi (qayta ishlatib bo'lmaydi)
+}
+
+// Kirishni Telegram orqali tasdiqlash: parol to'g'ri bo'lgach botga so'rov boradi.
+// ISTISNO: login paytida tenant hali sessiyada yo'q — userId orqali bog'lanadi.
+model LoginChallenge {
+  id        String          @id
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    ChallengeStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime        @default(now())
+
+  @@index([userId, createdAt])
+}
+
+enum VerificationStatus {
+  PENDING // QR ko'rsatildi, mijoz hali botni ochmadi
+  STARTED // mijoz botni ochdi, raqamini yuborishi kerak
+  CODE_SENT // botda kod berildi, kassir kiritishi kutilmoqda
+  DONE
+}
+
+// Mijozni kassada tasdiqlash: QR → bot → mijoz o'z raqamini yuboradi → 4 xonali kod → kassir kiritadi.
+model CustomerVerification {
+  id         String             @id
+  tenantId   String
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     VerificationStatus @default(PENDING)
+  chatId     String?
+  code       String?
+  attempts   Int                @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime           @default(now())
+
+  @@index([tenantId, customerId])
+  @@index([chatId, status])
+}
+
+// "Yordam" → "Muammo haqida xabar berish". Platforma darajasida (admin ko'radi), do'kon bilan.
+model SupportRequest {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  page      String?
+  errorCode String?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([resolved, createdAt])
+}
+
+enum ImageKind {
+  ORIGINAL // egasi yuklagan rasm (siqilgan)
+  STANDARD // kassada ko'rinadigan: oq fon, kvadrat, bir xil uslub
+}
+
+enum ImageSource {
+  UPLOAD // yuklangan rasm (kvadratga keltirilgan)
+  AI_GENERATED // rasm yo'q edi — nomidan Gemini yaratdi
+  AI_STANDARDIZED // yuklangan rasmdan Gemini bir xil uslubga keltirdi
+}
+
+// Mahsulot rasmlari bazada (bytea) — Railway diski har yangilanishda tozalanadi, baza esa saqlanadi
+// va zaxiralanadi. Mahsulot so'rovlariga og'irlik qo'shmasligi uchun alohida jadval.
+model ProductImage {
+  id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind      ImageKind
+  source    ImageSource
+  mime      String
+  data      Bytes
+  updatedAt DateTime    @updatedAt
+
+  @@unique([productId, kind])
+  @@index([tenantId])
+}
+
+// Sun'iy intellekt so'rovlari (kunlik limit va xarajat nazorati uchun)
+model AiGeneration {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String?
+  kind      String
+  ok        Boolean
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// Yangiliklar (platforma darajasida, admin yozadi): sayt, dastur ichi, Telegram kanal va
+// do'kon egalariga bot xabari. ISTISNO: tenantId yo'q — barcha do'konlar uchun umumiy.
+model NewsPost {
+  id              String    @id @default(cuid())
+  title           String
+  body            String
+  // Ixtiyoriy rasm (bazada, ro'yxat so'rovlarida tanlanmaydi)
+  image           Bytes?
+  imageMime       String?
+  // Qayerda ko'rsatiladi
+  onSite          Boolean   @default(true)
+  onApp           Boolean   @default(true)
+  toChannel       Boolean   @default(true)
+  toOwners        Boolean   @default(true)
+  publishedAt     DateTime?
+  // Telegramga yuborilgan vaqt (qayta yuborilmasin)
+  channelSentAt   DateTime?
+  ownersSentAt    DateTime?
+  ownersSentCount Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([publishedAt])
+}
+
+// Aksiya: muddatli chegirma (%) — mahsulotga yoki butun kategoriyaga. Kassada narx avtomatik
+// kamayadi (server ham shu narxni hisoblaydi). Mahsulotga bo'lgan aksiya kategoriyanikidan ustun.
+model Promotion {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  percent    Decimal   @db.Decimal(5, 2)
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  startsAt   DateTime
+  endsAt     DateTime
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, isActive, endsAt])
+}
+
+enum OrderStatus {
+  DRAFT // mijoz botda savatcha yig'yapti
+  NEW // yuborildi — do'kon ko'rishi kerak
+  ACCEPTED // qabul qilindi, tayyorlanmoqda
+  READY // tayyor — mijozga xabar ketdi
+  DONE // sotildi (kassada)
+  CANCELLED
+}
+
+// Mijozning Telegram bot orqali buyurtmasi. Narxlar yuborilgan paytdagi holatda saqlanadi;
+// kassada sotilganda narx baribir serverda qayta hisoblanadi.
+model Order {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number      Int?
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status      OrderStatus @default(DRAFT)
+  note        String?
+  total       Int         @default(0)
+  saleId      String?     @unique
+  sale        Sale?       @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  submittedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@index([tenantId, status, submittedAt])
+  @@index([customerId, status])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  unit      Unit
+  price     Int
+  quantity  Decimal @db.Decimal(14, 3)
+
+  @@unique([orderId, productId])
+}
+
+// Parolni tiklash havolasi (Telegram yoki email orqali). Token bazada faqat hash ko'rinishida.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
