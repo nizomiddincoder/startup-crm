@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantScopedUser } from "@/lib/services/tenant-guard";
-import { canManageStock } from "@/lib/services/permissions";
+import { canManageStock } from "@/lib/services/permissions";import { Prisma } from "@prisma/client";
 import {
   listStockBalances,
   listDocuments,
@@ -10,6 +10,8 @@ import {
   createWriteOff,
   createInventory,
 } from "@/lib/services/stock";
+
+const DOC_TYPE_CAST: Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"] = ["RECEIPT", "WRITE_OFF", "INVENTORY"];
 
 export async function GET(req: NextRequest) {
   const { tenantId, role } = await requireTenantScopedUser([ "OWNER", "MANAGER", "WAREHOUSE" ]);
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (kind === "documents") {
     const type = searchParams.get("type") ?? undefined;
     const branchId = searchParams.get("branchId") ?? undefined;
-    const documents = await listDocuments(tenantId, type as any, branchId);
+    const documents = await listDocuments(tenantId, (type && DOC_TYPE_CAST.includes(type as Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"])) ? type as Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"] : undefined, branchId);
     return NextResponse.json({ documents });
   }
   if (kind === "document") {

@@ -232,7 +232,7 @@ export async function createSale(tenantId: string, userId: string, input: SaleIn
 
 /** Sotuvlar ro'yxati (filial filtri bilan). */
 export async function listSales(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: any = { tenantId };
+  const where: Prisma.SaleWhereInput = { tenantId };
   if (branchId) where.branchId = branchId;
   if (from || to) {
     where.createdAt = {};
@@ -251,9 +251,9 @@ export async function listSales(tenantId: string, branchId?: string | null, from
   });
 }
 
-/** Smeta lar ro'yxati. */
+/** Smetalar ro'yxati. */
 export async function listEstimates(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: any = { tenantId };
+  const where: Prisma.EstimateWhereInput = { tenantId };
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = new Date(from);
