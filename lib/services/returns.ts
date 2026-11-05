@@ -245,3 +245,30 @@ export async function createReturn(tenantId: string, userId: string, input: Retu
 export function returnDoneMessage(r: { number: number; total: number }) {
   return t(uz.returns.done, { number: r.number, amount: formatSum(r.total) });
 }
+
+export async function listSaleReturns(tenantId: string, branchId?: string | null) {
+  return db.saleReturn.findMany({
+    where: {
+      tenantId,
+      ...(branchId ? { sale: { branchId: branchId ?? undefined } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      user: { select: { name: true } },
+      sale: { select: { number: true, branchId: true } },
+    },
+  });
+}
+
+export async function getSaleReturn(tenantId: string, id: string) {
+  return db.saleReturn.findFirst({
+    where: { id, tenantId },
+    include: {
+      items: { orderBy: { id: "asc" }, include: { saleItem: { select: { name: true, unit: true, price: true } } } },
+      user: { select: { name: true } },
+      sale: { select: { number: true } },
+    },
+  });
+}
+

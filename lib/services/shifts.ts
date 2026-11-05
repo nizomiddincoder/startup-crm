@@ -111,14 +111,30 @@ export async function closeShift(
   return { id: open.id, number: open.number, expected: summary.expected, counted: data.cash };
 }
 
-/** Smenalar ro'yxati: egasi/menejer — hammasi, kassir — faqat o'ziniki. */
-export async function listShifts(tenantId: string, userId?: string, take = 100) {
+/** Smenalar ro'yxati: egasi/menejer — hammasi, kassir — faqat o'ziniki. branchId bo'lsa filial cheklanadi. */
+export async function listShifts(tenantId: string, userId?: string, branchId?: string | null, take = 100) {
   return db.cashShift.findMany({
-    where: { tenantId, ...(userId ? { userId } : {}) },
+    where: {
+      tenantId,
+      ...(userId ? { userId } : {}),
+      ...(branchId ? { branchId: branchId ?? undefined } : {}),
+    },
     orderBy: { openedAt: "desc" },
     take,
     include: { user: { select: { name: true } } },
   });
+}
+
+export async function listCashShifts(tenantId: string, branchId?: string | null) {
+  return listShifts(tenantId, undefined, branchId);
+}
+
+export async function openCashShift(tenantId: string, userId: string, input: ShiftCashInput) {
+  return openShift(tenantId, userId, input);
+}
+
+export async function closeCashShift(tenantId: string, userId: string, id: string, input: ShiftCashInput, now = new Date()) {
+  return closeShift(tenantId, userId, input, now);
 }
 
 export async function getShift(tenantId: string, id: string) {

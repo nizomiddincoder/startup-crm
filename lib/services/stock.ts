@@ -265,14 +265,64 @@ export async function createInventory(tenantId: string, userId: string, input: S
   });
 }
 
-export async function listDocuments(tenantId: string, type?: StockDocumentType) {
+export async function listDocuments(tenantId: string, type?: StockDocumentType, branchId?: string | null) {
   return db.stockDocument.findMany({
-    where: { tenantId, ...(type ? { type } : {}) },
+    where: {
+      tenantId,
+      ...(type ? { type } : {}),
+      ...(branchId ? { branchId: branchId ?? undefined } : {}),
+    },
     orderBy: { number: "desc" },
     take: 100,
     include: { createdBy: { select: { name: true } }, _count: { select: { items: true } } },
   });
 }
+
+export type StockBalanceRow = {
+  id: string;
+  name: string;
+  unit: import("@prisma/client").Unit;
+  minStock: string | null;
+  balance: string;
+};
+
+/** Qoldiqlar ro'yxati. branchId null — hammasi. */
+export async function listStockBalances(tenantId: string, branchId?: string | null): Promise<StockBalanceRow[]> {
+  const products = await db.product.findMany({
+    where: { tenantId, isActive: true, ...(branchId ? { stockMovements: { some: { branchId: branchId ?? undefined } } } : {}) },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, unit: true, minStock: true },
+  });
+  const balances = await getBalances(tenantId, products.map((p) => p.id));
+  return products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    unit: p.unit,
+    minStock: p.minStock?.toString() ?? null,
+    balance: (balances.get(p.id) ?? new Decimal(0)).toString(),
+  }));
+}
+
+/** Harakatlar tarixi (branch filtri bilan). */
+export async function listStockMovements(
+  tenantId: string,
+  productId?: string,
+  branchId?: string | null,
+  limit = 200,
+) {
+  const rows = await db.stockMovement.findMany({
+    where: {
+      tenantId,
+      ...(productId ? { productId } : {}),
+      ...(branchId ? { branchId: branchId ?? undefined } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(limit, 500),
+    include: { product: { select: { id: true, name: true } } },
+  });
+  return rows;
+}
+
 
 export async function getDocument(tenantId: string, id: string) {
   return db.stockDocument.findFirst({

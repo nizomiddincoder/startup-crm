@@ -2,7 +2,6 @@
  * Rollar va ruxsatlar. Qaysi rol qaysi bo'limga kira olishi faqat shu yerda belgilanadi.
  * Bu fayl Edge muhitida (middleware) ham ishlaydi, shuning uchun Prisma import qilinmaydi.
  */
-
 export const ROLES = ["SUPER_ADMIN", "OWNER", "MANAGER", "CASHIER", "WAREHOUSE"] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -67,4 +66,54 @@ export function homePathForRole(role: Role): string {
     default:
       return "/dashboard";
   }
+}
+
+/** Kaspiy bilan ishlash: faqat kassa yoki menejer. */
+export function canUsePos(role: Role): boolean {
+  return SECTION_ACCESS["/pos"].includes(role);
+}
+
+/** Hisobotlarga kirish (standart dashboard hisobotlar). */
+export function canViewReports(role: Role): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+/** Saralash/jarayonlarni boshqarish (menejer uchun). */
+export function canManageOperations(role: Role): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+/** Modullarni o'chirmoqchi bo'lsa, faqat egasi. */
+export function canManageModules(role: Role): boolean {
+  return role === "OWNER";
+}
+
+/** Billing (obuna/sozlamalar). */
+export function canManageBilling(role: Role): boolean {
+  return role === "OWNER";
+}
+
+/** Xodimlarni Telegram orqali taklif qilish (Mini App). */
+export function canInviteStaff(role: Role): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+/** O'z qurilmasining PIN ni o'rnatish/yoki o'z qurilmasini o'chirish. */
+export function canManageOwnDevice(role: Role): boolean {
+  return true;
+}
+
+/** Biriktirilgan qurilmalarni boshqarish (egasi/menejer). */
+export function canManageDevices(role: Role): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+/** Filial qo'shish/yoki filialni o'chirish. */
+export function canManageBranches(role: Role): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+/** Kirish holati: active dialoqda kirish rejasini ko'rish. */
+export function canManageSubscription(role: Role): boolean {
+  return role === "OWNER";
 }

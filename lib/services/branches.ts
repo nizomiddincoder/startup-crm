@@ -11,9 +11,9 @@ import { formatQuantity } from "./format";
 import { assertSubscriptionActive } from "./companies";
 import { withTenant } from "@/lib/db-tenant";
 
-export async function listBranches(tenantId: string) {
-  return db.branch.findMany({
-    where: { tenantId },
+export async function listBranches(tenantId: string, role?: import("./permissions").Role, currentBranchId?: string | null) {
+  const rows = await db.branch.findMany({
+    where: { tenantId, isActive: true },
     orderBy: [{ isDefault: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -23,6 +23,20 @@ export async function listBranches(tenantId: string) {
       isActive: true,
       _count: { select: { users: true } },
     },
+  });
+  if (currentBranchId) {
+    return rows.map((b) => ({ ...b, current: b.id === currentBranchId }));
+  }
+  return rows;
+}
+
+export async function setBranchActive(tenantId: string, branchId: string, isActive: boolean) {
+  const branch = await db.branch.findFirst({ where: { id: branchId, tenantId } });
+  if (!branch) throw new ServiceError(uz.branches.notFound, "branchId");
+  if (isActive === false && branch.isDefault) throw new ServiceError(uz.branches.cannotDisableDefault);
+  await db.branch.update({
+    where: { id: branchId },
+    data: { isActive },
   });
 }
 
@@ -169,5 +183,25 @@ export async function transferStock(
     }
 
     return transfer;
+  });
+}
+
+export async function createStockTransfer(
+  tenantId: string,
+  userId: string,
+  input: { fromBranchId: string; toBranchId: string; note?: string; items: { productId: string; quantity: string }[] },
+) {
+  return transferStock(tenantId, userId, input);
+}
+
+export async function listStockTransfers(tenantId: string, branchId?: string | null) {
+  return db.stockTransfer.findMany({
+    where: {
+      tenantId,
+      ...(branchId ? { OR: [{ fromBranchId: branchId }, { toBranchId: branchId }] } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: { fromBranch: { select: { name: true } }, toBranch: { select: { name: true } }, createdBy: { select: { name: true } } },
   });
 }

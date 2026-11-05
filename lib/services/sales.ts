@@ -230,6 +230,49 @@ export async function createSale(tenantId: string, userId: string, input: SaleIn
   });
 }
 
+/** Sotuvlar ro'yxati (filial filtri bilan). */
+export async function listSales(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
+  const where: any = { tenantId };
+  if (branchId) where.branchId = branchId;
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
+  }
+  return db.sale.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      cashier: { select: { name: true } },
+      payments: true,
+      returns: { select: { total: true } },
+    },
+  });
+}
+
+/** Smeta lar ro'yxati. */
+export async function listEstimates(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
+  const where: any = { tenantId };
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
+  }
+  return db.estimate.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+}
+
+export async function getEstimate(tenantId: string, id: string) {
+  return db.estimate.findFirst({
+    where: { id, tenantId },
+    include: { items: { orderBy: { id: "asc" } }, createdBy: { select: { name: true } } },
+  });
+}
+
 export async function getSale(tenantId: string, id: string) {
   return db.sale.findFirst({
     where: { id, tenantId },
@@ -239,14 +282,50 @@ export async function getSale(tenantId: string, id: string) {
       cashier: { select: { name: true } },
       estimate: { select: { number: true } },
       tenant: { select: { name: true, address: true, phone: true } },
-      // Usta va bonus chekda KO'RSATILMAYDI — faqat xaridor
       customer: { select: { id: true, name: true, phone: true } },
       ledgerEntries: { where: { account: "DEBT" }, select: { dueDate: true } },
     },
   });
 }
 
-/** Berilgan kundagi sotuvlar (Toshkent vaqti, UTC+5). */
+/** Kassadagi tezkor qidiruv: sotuvlar va smetalar. */
+export async function searchSalesForPos(tenantId: string, query: string) {
+  const sales = await db.sale.findMany({
+    where: {
+      tenantId,
+      OR: [{ number: { equals: parseInt(query, 10) } }, { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    include: { items: { take: 1, select: { name: true, quantity: true } } },
+  });
+  const estimates = await db.estimate.findMany({
+    where: { tenantId, status: "OPEN", OR: [{ number: { equals: parseInt(query, 10) } }, { customerName: { contains: query, mode: "insensitive" } }] },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  return { sales, estimates };
+}
+
+export async function searchEstimatesForPos(tenantId: string, query: string) {
+  return db.estimate.findMany({
+    where: { tenantId, status: "OPEN", OR: [{ number: { equals: parseInt(query, 10) } }, { customerName: { contains: query, mode: "insensitive" } }] },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
+const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+/** O'zbekistonda yozgi vaqt yo'q, har doim UTC+5. */
+export function tashkentDayRange(day: Date) {
+  const local = new Date(day.getTime() + TASHKENT_OFFSET_MS);
+  const startLocal = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+  const from = new Date(startLocal - TASHKENT_OFFSET_MS);
+  return { from, to: new Date(from.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+/** Kundalik hisobot uchun sotuvlar va qaytarishlar. */
 export async function listSalesForDay(tenantId: string, day: Date = new Date()) {
   const { from, to } = tashkentDayRange(day);
   return db.sale.findMany({
@@ -260,7 +339,6 @@ export async function listSalesForDay(tenantId: string, day: Date = new Date()) 
   });
 }
 
-/** Berilgan kundagi qaytarishlar (bugungi tushumdan ayiriladi). */
 export async function listReturnsForDay(tenantId: string, day: Date = new Date()) {
   const { from, to } = tashkentDayRange(day);
   return db.saleReturn.findMany({
@@ -268,14 +346,4 @@ export async function listReturnsForDay(tenantId: string, day: Date = new Date()
     orderBy: { number: "desc" },
     include: { user: { select: { name: true } }, sale: { select: { id: true, number: true } } },
   });
-}
-
-const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
-
-/** O'zbekistonda yozgi vaqt yo'q, har doim UTC+5. */
-export function tashkentDayRange(day: Date) {
-  const local = new Date(day.getTime() + TASHKENT_OFFSET_MS);
-  const startLocal = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
-  const from = new Date(startLocal - TASHKENT_OFFSET_MS);
-  return { from, to: new Date(from.getTime() + 24 * 60 * 60 * 1000) };
 }
