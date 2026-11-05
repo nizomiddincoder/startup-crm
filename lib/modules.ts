@@ -1,12 +1,12 @@
 /**
- * MODULLAR — do'kon bo'yicha yoqiladigan bo'limlar (tarifga qarab, admin o'zgartiradi).
+ * MODULLAR — do'kon bo'yicha yoqiladigan bo'limlar.
  * Kassa (sotuv, qaytarish, smena), mahsulotlar, xodimlar, Telegram — har doim bor (asos).
- * Bazada faqat O'CHIRILGANLAR saqlanadi (`Tenant.modulesOff`) — yangi modul qo'shilsa,
- * eski do'konlarda u yoqiq bo'ladi. Prisma import qilinmaydi (klientda ham ishlaydi).
+ * Amaldagi modullar = tarif to'plami ∪ to'langan qo'shimchalar (ACTIVATED ModuleRequest)
+ * − o'chirilganlar (Tenant.modulesOff). Prisma import qilinmaydi (klientda ham ishlaydi).
  */
-import type { PlanId } from "./pricing";
 
-export const MODULES = [
+/** Asosiy modullar (SaaS'dan oldingi tizimda borlari). */
+export const CORE_MODULES = [
   "estimates", // smeta
   "warehouse", // ombor: kirim, chiqim, inventarizatsiya
   "customers", // mijozlar, nasiya, usta bonusi
@@ -14,37 +14,106 @@ export const MODULES = [
   "orders", // Telegram'da buyurtma
   "ai", // AI rasm va AI yordamchi
 ] as const;
-export type ModuleId = (typeof MODULES)[number];
 
-/** Boshqa modulsiz ishlamaydiganlar: marketing va buyurtma — mijozlar bazasiga tayanadi. */
+/** Kengaytma modullari (SaaS). Yangi modul qo'shish: shu ro'yxatga yozing — README'ga qarang. */
+export const EXTENDED_MODULES = [
+  "reports", // batafsil hisobotlar
+  "price_tiers", // ulgurji narx darajalari
+  "supplier_orders", // yetkazib beruvchi buyurtmalari
+  "raw_materials", // xomashyo
+  "recipes", // retseptlar (BOM)
+  "production", // ishlab chiqarish buyurtmalari
+  "appointments", // yozuvlar (xizmatlar uchun)
+  "service_catalog", // xizmatlar katalogi
+] as const;
+
+export const MODULES = [...CORE_MODULES, ...EXTENDED_MODULES] as const;
+export type ModuleId = (typeof MODULES)[number];
+export type CoreModuleId = (typeof CORE_MODULES)[number];
+
+/** Boshqa modulsiz ishlamaydiganlar: bog'liqlik hisobga olinadi. */
 export const MODULE_REQUIRES: Partial<Record<ModuleId, ModuleId>> = {
   marketing: "customers",
   orders: "customers",
+  recipes: "raw_materials",
+  production: "raw_materials",
+  supplier_orders: "warehouse",
+  price_tiers: "customers",
 };
 
-/** Tarif bo'yicha sukut (admin tarifni tanlaganda shu to'plam qo'yiladi, keyin o'zgartirsa bo'ladi). */
-export const PLAN_MODULES: Record<PlanId, readonly ModuleId[]> = {
+/** Tarif bo'yicha sukut to'plami. Eski tariflar — asosiy modullar bilan. */
+export const PLAN_MODULES: Record<string, readonly ModuleId[]> = {
   standard: ["estimates", "warehouse", "customers"],
-  custom: MODULES,
-  turnkey: MODULES,
+  custom: CORE_MODULES,
+  turnkey: CORE_MODULES,
+  start: ["warehouse", "customers", "reports"],
+  biznes: ["warehouse", "customers", "reports", "estimates", "marketing"],
+  premium: [...CORE_MODULES, "reports", "price_tiers", "supplier_orders", "appointments", "service_catalog"],
+  // "production", "raw_materials", "recipes" — faqat qo'shimcha to'lov bilan (ADDON_PRICES)
 };
 
-export function isPlanId(value: string): value is PlanId {
+/** Biznes turi bo'yicha onboarding'da tanlanadigan sukut modullar. */
+export const BUSINESS_TYPE_MODULES = {
+  RETAIL: ["warehouse", "customers", "marketing", "reports"],
+  WHOLESALE: ["warehouse", "reports", "price_tiers", "supplier_orders"],
+  MANUFACTURER: ["warehouse", "reports", "raw_materials", "recipes", "production"],
+  SERVICES: ["appointments", "service_catalog", "reports"],
+} as const satisfies Record<string, readonly ModuleId[]>;
+
+export type BusinessTypeId = keyof typeof BUSINESS_TYPE_MODULES;
+
+export const BUSINESS_TYPE_IDS = Object.keys(BUSINESS_TYPE_MODULES) as BusinessTypeId[];
+
+export function isBusinessTypeId(value: string): value is BusinessTypeId {
+  return (BUSINESS_TYPE_IDS as string[]).includes(value);
+}
+
+/** Oyiga mijozlar soni oralig'i (onboarding savoli, ixtiyoriy). */
+export const CUSTOMERS_RANGES = ["<500", "500-2000", "2000-10000", "10000+"] as const;
+
+export function isPlanId(value: string): boolean {
   return value in PLAN_MODULES;
 }
 
-/** O'chirilganlar ro'yxatidan yoqiq modullar to'plami (bog'liqlik hisobga olinadi). */
-export function enabledModules(modulesOff: readonly string[]): Set<ModuleId> {
-  const on = new Set<ModuleId>(MODULES.filter((m) => !modulesOff.includes(m)));
-  for (const [module, needs] of Object.entries(MODULE_REQUIRES)) {
-    if (needs && !on.has(needs)) on.delete(module as ModuleId);
+/**
+ * Eski funksiya (asosiy modullar bilan ishlaydi): o'chirilganlar ro'yxatidan yoqiq modullar.
+ * Yangi kodda effectiveModules() dan foydalaning.
+ */
+export function enabledModules(modulesOff: readonly string[]): Set<CoreModuleId> {
+  const on = new Set<CoreModuleId>(CORE_MODULES.filter((m) => !modulesOff.includes(m)));
+  return withDependencies(on);
+}
+
+/** To'liq hisob: tarif to'plami ∪ qo'shimcha modullar − o'chirilganlar. */
+export function effectiveModules(input: {
+  plan: string;
+  modulesOff: readonly string[];
+  extra: readonly string[];
+}): Set<ModuleId> {
+  const base = PLAN_MODULES[input.plan] ?? CORE_MODULES;
+  const on = new Set<ModuleId>();
+  for (const m of base) if (!input.modulesOff.includes(m)) on.add(m);
+  for (const m of input.extra) {
+    if (isModuleId(m) && !input.modulesOff.includes(m)) on.add(m);
   }
-  return on;
+  return withDependencies(on);
+}
+
+function withDependencies(on: ReadonlySet<ModuleId>): Set<ModuleId> {
+  const result = new Set(on);
+  for (const [module, needs] of Object.entries(MODULE_REQUIRES)) {
+    if (needs && !result.has(needs)) result.delete(module as ModuleId);
+  }
+  return result;
+}
+
+export function isModuleId(value: string): value is ModuleId {
+  return (MODULES as readonly string[]).includes(value);
 }
 
 /** Yoqiq modullar ro'yxatidan bazaga yoziladigan "o'chirilganlar". Noma'lum nomlar tashlanadi. */
-export function modulesOffFor(enabled: readonly string[]): ModuleId[] {
-  return MODULES.filter((m) => !enabled.includes(m));
+export function modulesOffFor(enabled: readonly string[]): CoreModuleId[] {
+  return CORE_MODULES.filter((m) => !enabled.includes(m));
 }
 
 /** Sahifa yo'li qaysi modulga tegishli (menyu va himoya uchun). */

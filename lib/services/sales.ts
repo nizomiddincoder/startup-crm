@@ -4,6 +4,7 @@ import { t, uz } from "@/lib/i18n/uz";
 import { enabledModules } from "@/lib/modules";
 import { saleSchema, type SaleInput } from "@/lib/validation/sale";
 import { getAccountBalances, lockCustomer } from "./customers";
+import { assertSubscriptionActive } from "./companies";
 import { ServiceError } from "./errors";
 import { formatQuantity } from "./format";
 import { getBalances } from "./stock";
@@ -16,6 +17,7 @@ import { calcTotals, discountError, masterBonus, percentOf, settlePayments } fro
  */
 export async function createSale(tenantId: string, userId: string, input: SaleInput) {
   const data = saleSchema.parse(input);
+  await assertSubscriptionActive(tenantId);
 
   return db.$transaction(async (tx) => {
     const tenant = await tx.tenant.findUniqueOrThrow({

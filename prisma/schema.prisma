@@ -34,6 +34,17 @@ model Tenant {
   lastReturnNumber   Int       @default(0)
   lastShiftNumber    Int       @default(0)
   lastOrderNumber    Int       @default(0)
+  lastTransferNumber Int       @default(0)
+  // Onboarding: biznes turi, oyiga mijozlar soni oralig'i (ixtiyoriy, "skip" bo'lishi mumkin)
+  businessType       BusinessType?
+  customersRange     String?
+  plannedBranches    Int?
+  onboardingDoneAt   DateTime?
+  // Obuna: holat, keyingi to'lov sanasi va limitdan tashqari qo'shimcha birliklar
+  planStatus         PlanStatus @default(TRIAL)
+  planRenewsAt       DateTime?
+  addonBranches      Int        @default(0)
+  addonCashiers      Int        @default(0)
   // Mijozlarga bonus ball (keshbek): xariddan foiz. null — o'chiq
   cashbackPercent    Decimal?  @db.Decimal(5, 2)
   // Saytda o'zi ro'yxatdan o'tgan do'kon — bepul sinov tugash sanasi (admin yaratganida — null)
@@ -72,6 +83,15 @@ model Tenant {
   aiGenerations         AiGeneration[]
   promotions            Promotion[]
   orders                Order[]
+  branches              Branch[]
+  memberships           Membership[]
+  staffInvites          StaffInvite[]
+  miniAppTokens         MiniAppToken[]
+  moduleRequests        ModuleRequest[]
+  payments              Payment[]
+  stockTransfers        StockTransfer[]
+  staffDevices          StaffDevice[]
+  stockTransferItems    StockTransferItem[]
 }
 
 model User {
@@ -111,6 +131,16 @@ model User {
   loginChallenges      LoginChallenge[]
   supportRequests      SupportRequest[]
   passwordResets       PasswordReset[]
+
+  // Kassir bitta filialga bog'lanadi (null — filial cheklovisiz, eski foydalanuvchilar)
+  branchId       String?
+  branch         Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  memberships    Membership[]
+  staffDevices   StaffDevice[]
+  miniAppTokens  MiniAppToken[]
+  transfersMade  StockTransfer[]  @relation("StockTransferCreatedBy")
+
+  @@index([branchId])
 
   @@index([tenantId])
 }
@@ -174,6 +204,7 @@ model Product {
   stockDocumentItems StockDocumentItem[]
   promotions         Promotion[]
   orderItems         OrderItem[]
+  stockTransferItems StockTransferItem[]
 
   @@unique([tenantId, barcode])
   @@index([tenantId, isActive])
@@ -195,6 +226,47 @@ enum MovementType {
   WRITE_OFF // hisobdan chiqarish (singan, yo'qolgan)
   ADJUSTMENT // inventarizatsiya tuzatishi (+ yoki -)
   RETURN // mijoz qaytargan tovar (kirim)
+  TRANSFER_OUT // filialdan chiqim (ko'chirish)
+  TRANSFER_IN // boshqa filialga kirim (ko'chirish)
+}
+
+// Biznes turi (onboarding savoliga ko'ra modullar tanlanadi)
+enum BusinessType {
+  RETAIL // chakana savdo
+  WHOLESALE // ulgurji savdo
+  MANUFACTURER // ishlab chiqarish
+  SERVICES // xizmatlar
+}
+
+// Obuna holati. Trial tugasa — hisob faqat o'qish rejimiga o'tadi (ma'lumotlar o'chmaydi)
+enum PlanStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+}
+
+// Xodimni Telegram Mini App'ga taklif qilish holati
+enum InviteStatus {
+  PENDING // havola yaratildi, hali ochilmagan
+  ACCEPTED // xodim havolani ochdi, akkaunt bog'landi
+  REVOKED // egasi bekor qilgan
+  EXPIRED // muddati o'tgan
+}
+
+// Egasi so'ragan qo'shimcha modul (tarif/tasdiqlangach yoqiladi)
+enum ModuleRequestStatus {
+  PENDING
+  ACTIVATED
+  REJECTED
+}
+
+// To'lov holati (Click/Payme/Mock webhooklaridan yangilanadi)
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
 }
 
 enum StockDocumentType {
@@ -217,6 +289,9 @@ model Sale {
   number       Int
   cashierId    String
   cashier      User      @relation(fields: [cashierId], references: [id])
+  // Qaysi filialda sotilgan (eski yozuvlar — null)
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id])
   estimateId   String?   @unique
   estimate     Estimate? @relation(fields: [estimateId], references: [id])
   // Pul — so'mda. total = subtotal - discount
@@ -287,6 +362,9 @@ model StockMovement {
   product        Product            @relation(fields: [productId], references: [id])
   type           MovementType
   quantity       Decimal            @db.Decimal(14, 3)
+  // Filial ombori (null — eski yozuvlar / asosiy ombor)
+  branchId       String?
+  branch         Branch?            @relation(fields: [branchId], references: [id])
   saleItemId     String?
   saleItem       SaleItem?          @relation(fields: [saleItemId], references: [id])
   documentItemId String?
@@ -351,6 +429,9 @@ model StockDocument {
   type         StockDocumentType
   // Do'kon ichidagi hujjat raqami (barcha turlar uchun bitta ketma-ketlik)
   number       Int
+  // Qaysi filial ombori (null — eski hujjatlar)
+  branchId     String?
+  branch       Branch?           @relation(fields: [branchId], references: [id])
   // Kirim: yetkazib beruvchi nomi (P4'da oddiy matn)
   supplierName String?
   // Hisobdan chiqarish: sababi; boshqalarda — izoh
@@ -623,6 +704,9 @@ model CashShift {
   number       Int
   userId       String
   user         User      @relation(fields: [userId], references: [id])
+  // Qaysi filial kassasi (null — eski smenalar)
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id])
   openedAt     DateTime  @default(now())
   openingCash  Int
   closedAt     DateTime?
@@ -838,7 +922,178 @@ model PasswordReset {
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// ====== SaaS: filiallar, ko'p kompaniya, xodim takliflari, Mini App, modullar, to'lovlar ======
+
+// Filial: har birining o'z ombori (StockMovement.branchId), kassirlari va sotuvlari bor.
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  // Birinchi filial — asosiy (eski ma'lumotlar shunga bog'lanadi)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  sales            Sale[]
+  stockMovements   StockMovement[]
+  stockDocuments   StockDocument[]
+  cashShifts       CashShift[]
+  transfersOut     StockTransfer[] @relation("TransferFrom")
+  transfersIn      StockTransfer[] @relation("TransferTo")
+  staffInvites     StaffInvite[]
+  memberships      Membership[]
+
+  @@index([tenantId])
+}
+
+// Bir eganing bir nechta kompaniyasi bo'lishi mumkin: login → kompaniya tanlash.
+// User.tenantId — hozirgi faol kompaniya (JWT), qolganlari — shu jadvalda.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role
+  // Menejer/kassir uchun: qaysi filialga biriktirilgan (null — hammasi)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+// Xodimni Mini App'ga taklif: egasi ism/telefon/rol/filial kiritadi → havola + QR.
+model StaffInvite {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String?
+  branch      Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name        String
+  phone       String
+  role        Role
+  token       String       @unique
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime
+  createdById String
+  acceptedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([tenantId, status])
+}
+
+// Xodimning qurilmasi: Telegram Mini App yoki PIN bilan kiradi. Egasi istalgan qurilmani darhol o'chiradi.
+model StaffDevice {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deviceId       String
+  name           String?
+  telegramUserId String?
+  // Qurilmaga bog'liq 4-6 xonali PIN (fallback kirish uchun)
+  pinHash        String?
+  lastSeenAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([tenantId])
+}
+
+// Mini App sessiya tokeni (hash ko'rinishida). Muddati tugaydi; qurilma o'chirilsa ishlamaydi.
+model MiniAppToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deviceId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId, deviceId])
+}
+
+// Egasi so'ragan qo'shimcha modul: tarif/narx tasdiqlangach ACTIVATED bo'ladi.
+model ModuleRequest {
+  id         String              @id @default(cuid())
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleKey  String
+  status     ModuleRequestStatus @default(PENDING)
+  note       String?
+  createdAt  DateTime            @default(now())
+  resolvedAt DateTime?
+
+  @@unique([tenantId, moduleKey, status])
+  @@index([tenantId])
+}
+
+// To'lov: obuna yoki add-on. Provayder — "mock" | "click" | "payme".
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider    String
+  providerRef String?
+  amount      Int
+  // "plan:start" | "plan:biznes" | "addon:branch" | "addon:cashier" | "module:production"
+  purpose     String
+  months      Int           @default(1)
+  status      PaymentStatus @default(PENDING)
+  payload     Json?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([provider, providerRef])
+}
+
+// Filiallararo tovar ko'chirish: har bir qator uchun TRANSFER_OUT (manbadan) va
+// TRANSFER_IN (qabul qiluvchida) StockMovement yoziladi.
+model StockTransfer {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number       Int
+  fromBranchId String
+  fromBranch   Branch   @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranchId   String
+  toBranch     Branch   @relation("TransferTo", fields: [toBranchId], references: [id])
+  note         String?
+  createdById  String
+  createdBy    User     @relation("StockTransferCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+
+  items StockTransferItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, createdAt])
+}
+
+model StockTransferItem {
+  id         String        @id @default(cuid())
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transferId String
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id])
+  quantity   Decimal       @db.Decimal(14, 3)
+
+  @@index([tenantId, transferId])
 }

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { uz } from "@/lib/i18n/uz";
 import {
-  enabledModules,
+  effectiveModules,
   isPlanId,
   modulesOffFor,
   PLAN_MODULES,
@@ -9,13 +9,21 @@ import {
 } from "@/lib/modules";
 import { ServiceError } from "./errors";
 
-/** Do'konda yoqiq modullar. */
+/** Do'konda yoqiq modullar: tarif to'plami + to'langan qo'shimchalar − o'chirilganlar. */
 export async function tenantModules(tenantId: string): Promise<Set<ModuleId>> {
   const tenant = await db.tenant.findUnique({
     where: { id: tenantId },
-    select: { modulesOff: true },
+    select: { plan: true, modulesOff: true },
   });
-  return enabledModules(tenant?.modulesOff ?? []);
+  const activated = await db.moduleRequest.findMany({
+    where: { tenantId, status: "ACTIVATED" },
+    select: { moduleKey: true },
+  });
+  return effectiveModules({
+    plan: tenant?.plan ?? "custom",
+    modulesOff: tenant?.modulesOff ?? [],
+    extra: activated.map((r) => r.moduleKey),
+  });
 }
 
 export async function hasModule(tenantId: string, module: ModuleId) {
