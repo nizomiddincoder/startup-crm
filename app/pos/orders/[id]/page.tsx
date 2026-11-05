@@ -72,7 +72,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{formatSum(i.price)}</TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatSum(i.total)}
+                  {formatSum(i.price * Number(i.quantity))}
                 </TableCell>
               </TableRow>
             ))}
