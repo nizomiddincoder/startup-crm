@@ -392,6 +392,12 @@ export const uz = {
       WRITE_OFF: "Hisobdan chiqarish",
       ADJUSTMENT: "Inventarizatsiya",
       RETURN: "Qaytarish",
+      TRANSFER_OUT: "Filialga ko'chirish (chiqim)",
+      TRANSFER_IN: "Filmardan kirish",
+    },
+    movementType(m) {
+      // Sahifalar komponentida m.type (MovementType) bilan indekslash xato bermasligi uchun
+      return (this.movementTypes as Record<string, string>)[m] ?? m;
     },
     documentNumber: "Hujjat №",
     type: "Turi",

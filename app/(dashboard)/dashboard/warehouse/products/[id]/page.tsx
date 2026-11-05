@@ -59,7 +59,7 @@ export default async function ProductHistoryPage({ params }: { params: Promise<{
                   <TableRow key={m.id}>
                     <TableCell className="tabular-nums">{formatDateTime(m.createdAt)}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{uz.warehouse.movementTypes[m.type]}</Badge>
+                      <Badge variant="secondary">{uz.warehouse.movementType(m.type)}</Badge>
                     </TableCell>
                     <TableCell>
                       {m.sale ? (
