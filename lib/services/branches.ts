@@ -115,7 +115,7 @@ export async function transferStock(
     if (branches.length !== 2) throw new ServiceError(uz.branches.notFound, "fromBranchId");
 
     const products = await tx.product.findMany({
-      where: { tenantId, id: { in: [...new Set(clean.map((i) => i.productId))], isActive: true } },
+      where: { tenantId, id: { in: [...new Set(clean.map((i) => i.productId))] }, isActive: true },
       select: { id: true, name: true, unit: true },
     });
     const byId = new Map(products.map((p) => [p.id, p]));

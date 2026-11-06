@@ -79,7 +79,7 @@ async function productsView(shop: Shop, categoryId: string | null, page: number)
   kb.text(uz.bot.backToCategories, `o:s:${shop.id}`);
   kb.text(t(uz.bot.cartButton, { count: await cartCount(shop) }), `o:v:${shop.id}`);
   const text = data.items.length
-    ? t(uz.bot.products, { category: escapeHtml(data.category) })
+    ? t(uz.bot.products, { category: escapeHtml(data.category ?? "") })
     : uz.bot.noProducts;
   return { text, kb };
 }
@@ -223,7 +223,7 @@ export function registerOrderHandlers(bot: Bot) {
           await ctx.answerCallbackQuery();
           await ctx.editMessageText(
             t(uz.bot.submitted, {
-              number: order.number,
+              number: order.number ?? "—",
               shop: escapeHtml(shop.tenant.name),
               total: formatSum(order.total),
             }),
@@ -243,7 +243,7 @@ export function registerOrderHandlers(bot: Bot) {
 
 async function notifyStaff(bot: Bot, shop: Shop, order: Awaited<ReturnType<typeof submitDraft>>) {
   const text = t(uz.bot.newOrderStaff, {
-    number: order.number,
+    number: order.number ?? "—",
     customer: escapeHtml(order.customer.name),
     phone: order.customer.phone ? `, ${order.customer.phone}` : "",
     lines: order.lines

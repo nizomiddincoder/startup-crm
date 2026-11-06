@@ -79,7 +79,7 @@ export function isPlanId(value: string): boolean {
  * Eski funksiya (asosiy modullar bilan ishlaydi): o'chirilganlar ro'yxatidan yoqiq modullar.
  * Yangi kodda effectiveModules() dan foydalaning.
  */
-export function enabledModules(modulesOff: readonly string[]): Set<CoreModuleId> {
+export function enabledModules(modulesOff: readonly string[]): Set<ModuleId> {
   const on = new Set<CoreModuleId>(CORE_MODULES.filter((m) => !modulesOff.includes(m)));
   return withDependencies(on);
 }

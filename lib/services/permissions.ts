@@ -70,7 +70,7 @@ export function homePathForRole(role: Role): string {
 
 /** Kaspiy bilan ishlash: faqat kassa yoki menejer. */
 export function canUsePos(role: Role): boolean {
-  return SECTION_ACCESS["/pos"].includes(role);
+  return (SECTION_ACCESS["/pos"] as readonly Role[]).includes(role);
 }
 
 /** Hisobotlarga kirish (standart dashboard hisobotlar). */

@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { t, uz } from "@/lib/i18n/uz";
 import { enabledModules } from "@/lib/modules";
@@ -232,7 +233,7 @@ export async function createSale(tenantId: string, userId: string, input: SaleIn
 
 /** Sotuvlar ro'yxati (filial filtri bilan). */
 export async function listSales(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: Parameters<typeof db.sale.findMany>[0]["where"] = { tenantId };
+  const where: Prisma.SaleWhereInput = { tenantId };
   if (branchId) where.branchId = branchId;
   if (from || to) {
     where.createdAt = {};
@@ -253,7 +254,7 @@ export async function listSales(tenantId: string, branchId?: string | null, from
 
 /** Smetalar ro'yxati. */
 export async function listEstimates(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: Parameters<typeof db.estimate.findMany>[0]["where"] = { tenantId };
+  const where: Prisma.EstimateWhereInput = { tenantId };
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = new Date(from);

@@ -395,7 +395,7 @@ export const uz = {
       TRANSFER_OUT: "Filialga ko'chirish (chiqim)",
       TRANSFER_IN: "Filmardan kirish",
     },
-    movementType(m) {
+    movementType(m: string) {
       // Sahifalar komponentida m.type (MovementType) bilan indekslash xato bermasligi uchun
       return (this.movementTypes as Record<string, string>)[m] ?? m;
     },
@@ -1008,6 +1008,40 @@ export const uz = {
     plan: "Tarifingiz: {plan}",
     saved: "Saqlandi",
     notEnoughStock: "Omborda yetarli emas: {name} (qoldiq {stock})",
+  },
+  companies: {
+    nameInvalid: "Do'kon nomi 2–60 belgidan iborat bo'lishi kerak",
+    notFound: "Do'kon topilmadi yoki sizga tegishli emas",
+  },
+  branches: {
+    nameInvalid: "Filial nomi 2–60 belgidan iborat bo'lishi kerak",
+    notFound: "Filial topilmadi",
+    cannotDisableDefault: "Asosiy filialni o'chirib bo'lmaydi",
+    defaultName: "Asosiy do'kon",
+    sameBranch: "Chiqim va kirim filiali bir xil bo'lmasligi kerak",
+    emptyTransfer: "Ko'chirish uchun kamida bitta tovar tanlang",
+    tooManyItems: "Bir operatsiyada 200 tadan ko'p tovar ko'chirib bo'lmaydi",
+  },
+  subscription: {
+    limitBranches: "Filiallar limitiga yetdingiz ({limit}). Tarifni yangilang yoki qo'shimcha filial sotib oling.",
+    limitCashiers: "Kassirlar limitiga yetdingiz ({limit}). Tarifni yangilang yoki qo'shimcha kassir sotib oling.",
+    readOnly: "Obuna muddati tugagan. Ma'lumotlar saqlangan — davom etish uchun tarifni yangilang.",
+  },
+  invites: {
+    notFound: "Taklif topilmadi yoki muddati tugagan",
+    deviceNotFound: "Qurilma topilmadi yoki bekor qilingan",
+    pinInvalid: "PIN 4–6 raqamdan iborat bo'lishi kerak",
+  },
+  miniapp: {
+    botNotConfigured: "Telegram bot sozlanmagan. Administrator bilan bog'laning.",
+    invalidInitData: "Telegram ma'lumotlari yaroqsiz",
+    expiredInitData: "Sessiya eskirgan — Mini App'ni qayta oching",
+    sessionExpired: "Sessiya muddati tugagan — qaytadan kiring",
+    deviceRevoked: "Qurilmaga kirish bekor qilingan. Egaga murojaat qiling.",
+    invalidCredentials: "Kirish ma'lumotlari yaroqsiz",
+  },
+  billing: {
+    providerNotConfigured: "To'lov tizimi hozircha ishlamaydi. Keyinroq urinib ko'ring.",
   },
 } as const;
 

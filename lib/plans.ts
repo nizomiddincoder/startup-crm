@@ -47,9 +47,11 @@ export function isKnownPlan(value: string): boolean {
  * Tarif chegaralari. Eski tariflar ("custom" va boshqalar) — premium darajasida,
  * chunki ular SaaS tariflar paydo bo'lishidan oldingi mijozlar.
  */
-export function planLimits(
-  tenant: Pick<Record<string, unknown>, "plan" | "addonBranches" | "addonCashiers">,
-): { branches: number; cashiers: number; plan: SaaSPlan } {
+export function planLimits(tenant: {
+  plan: string;
+  addonBranches?: number | null;
+  addonCashiers?: number | null;
+}): { branches: number; cashiers: number; plan: SaaSPlan } {
   const planId = isSaaSPlan(tenant.plan) ? tenant.plan : "premium";
   const plan = SAAS_PLANS[planId];
   return {
