@@ -232,7 +232,7 @@ export async function createSale(tenantId: string, userId: string, input: SaleIn
 
 /** Sotuvlar ro'yxati (filial filtri bilan). */
 export async function listSales(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: Prisma.SaleWhereInput = { tenantId };
+  const where: Parameters<typeof db.sale.findMany>[0]["where"] = { tenantId };
   if (branchId) where.branchId = branchId;
   if (from || to) {
     where.createdAt = {};
@@ -253,7 +253,7 @@ export async function listSales(tenantId: string, branchId?: string | null, from
 
 /** Smetalar ro'yxati. */
 export async function listEstimates(tenantId: string, branchId?: string | null, from?: string | null, to?: string | null) {
-  const where: Prisma.EstimateWhereInput = { tenantId };
+  const where: Parameters<typeof db.estimate.findMany>[0]["where"] = { tenantId };
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = new Date(from);

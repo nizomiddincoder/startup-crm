@@ -13,7 +13,7 @@ import { requireUser } from "@/lib/auth/session";
 import { uz } from "@/lib/i18n/uz";
 import { formatDateTime } from "@/lib/services/format";
 import { formatSum } from "@/lib/services/money";
-import { listOrders, OPEN_STATUSES } from "@/lib/services/orders";
+import { listOrdersWithCustomer, OPEN_STATUSES } from "@/lib/services/orders";
 
 type SearchParams = Promise<{ all?: string }>;
 
@@ -21,7 +21,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
   const { all } = await searchParams;
   const showAll = all === "1";
   const user = await requireUser();
-  const orders = await listOrders(user.tenantId, showAll ? "all" : "open");
+  const orders = await listOrdersWithCustomer(user.tenantId, showAll ? "all" : "open");
 
   return (
     <main className="flex flex-col gap-5 p-6">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantScopedUser } from "@/lib/services/tenant-guard";
-import { canManageStock } from "@/lib/services/permissions";import { Prisma } from "@prisma/client";
+import { canManageStock } from "@/lib/services/permissions";
 import {
   listStockBalances,
   listDocuments,
@@ -11,10 +11,10 @@ import {
   createInventory,
 } from "@/lib/services/stock";
 
-const DOC_TYPE_CAST: Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"] = ["RECEIPT", "WRITE_OFF", "INVENTORY"];
+type StockDocumentType = "RECEIPT" | "WRITE_OFF" | "INVENTORY";
 
 export async function GET(req: NextRequest) {
-  const { tenantId, role } = await requireTenantScopedUser([ "OWNER", "MANAGER", "WAREHOUSE" ]);
+  const { tenantId, role } = await requireTenantScopedUser(["OWNER", "MANAGER", "WAREHOUSE"]);
   const { searchParams } = new URL(req.url);
   const kind = searchParams.get("kind");
   if (kind === "balances") {
@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
   if (kind === "documents") {
     const type = searchParams.get("type") ?? undefined;
     const branchId = searchParams.get("branchId") ?? undefined;
-    const documents = await listDocuments(tenantId, (type && DOC_TYPE_CAST.includes(type as Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"])) ? type as Prisma.Enum.StockDocumentTypeFieldUpdateOperationsInput["set"] : undefined, branchId);
+    const resolvedType: StockDocumentType | undefined = type && ["RECEIPT", "WRITE_OFF", "INVENTORY"].includes(type)
+      ? (type as StockDocumentType)
+      : undefined;
+    const documents = await listDocuments(tenantId, resolvedType, branchId);
     return NextResponse.json({ documents });
   }
   if (kind === "document") {
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { tenantId, role, userId } = await requireTenantScopedUser([ "OWNER", "MANAGER", "WAREHOUSE" ]);
+  const { tenantId, role, userId } = await requireTenantScopedUser(["OWNER", "MANAGER", "WAREHOUSE"]);
   const body = await req.json().catch(() => ({}));
   const type = body?.type;
   if (type === "RECEIPT") {
@@ -63,3 +66,4 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
 }
+
