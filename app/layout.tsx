@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
-import { Analytics } from "@/components/marketing/analytics";
 import { uz } from "@/lib/i18n/uz";
-import { analyticsIds, siteUrl } from "@/lib/site-config";
+import { siteUrl } from "@/lib/site-config";
 import "./globals.css";
 
 // Shrift fayllari shu yerda yuklanadi, ishlatilishi esa app/tokens.css orqali.
@@ -31,13 +30,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { pixelId, gaId } = analyticsIds();
   return (
     <html lang="uz" className={`${jakarta.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased">
-        {children}
-        {(pixelId || gaId) && <Analytics pixelId={pixelId} gaId={gaId} />}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

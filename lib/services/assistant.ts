@@ -33,7 +33,7 @@ export function assistantEnabled() {
 
 export function systemPrompt(role: Role) {
   return [
-    "Sen — qurilish mollari do'koni dasturining yordamchisisan. Faqat o'zbek tilida (lotin), sodda so'zlar bilan javob ber.",
+    "Sen — shokolad savdo markazi dasturining yordamchisisan. Faqat o'zbek tilida (lotin), sodda so'zlar bilan javob ber.",
     `Foydalanuvchining roli: ${uz.roles[role]}. Faqat shu rol qila oladigan narsani tavsiya qil; ruxsati bo'lmasa — kimdan so'rashni ayt.`,
     "Javob: qisqa, 1–6 qadam, tugma va menyu nomlarini aynan qo'shtirnoqda yoz (masalan «To'lov (F2)»).",
     "Faqat quyidagi yo'riqnomaga tayan. Bilmasang yoki dasturda yo'q narsa so'ralsa — to'qib chiqarma: «Bu haqda aniq ma'lumot yo'q — «Yordam» → «Muammo haqida xabar berish» orqali yozing» de.",

@@ -158,6 +158,7 @@ enum Unit {
   PACK // pachka
   ROLL // rulon
   SHEET // list
+  BOX // karton
 }
 
 model Category {

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
 
-// Seed'dagi demo do'kon (prisma/seed.ts): Sement M400 — 4780000000011, 62 000 so'm / qop;
-// Armatura 12 mm — 9 500 so'm / metr. Testlar demo do'konda haqiqiy sotuvlar yaratadi.
+// Seed'dagi demo do'kon (prisma/seed.ts): Qora shokolad 70% — 4780000000011, 14 000 so'm / dona;
+// Shokoladli konfet assorti — 95 000 so'm / kg. Testlar demo do'konda haqiqiy sotuvlar yaratadi.
 const CEMENT_BARCODE = "4780000000011";
 
 async function login(page: Page, phone: string) {
@@ -28,20 +28,21 @@ test("kassir: skaner, nom bo'yicha qidiruv, kasr miqdor, naqd to'lov va qaytim",
 
   await scan(page, CEMENT_BARCODE);
   await scan(page, CEMENT_BARCODE); // ikkinchi skaner — miqdor 2 bo'ladi
-  await expect(page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`)).toHaveValue("2");
+  await expect(page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`)).toHaveValue("2");
 
-  await page.getByLabel(uz.pos.searchPlaceholder).fill("Armatura 12");
+  // 2 × 14 000 + 1,5 kg × 95 000 = 170 500
+  await page.getByLabel(uz.pos.searchPlaceholder).fill("Shokoladli konfet");
   await page
-    .getByRole("option", { name: /Armatura 12 mm\s/ })
+    .getByRole("option", { name: /Shokoladli konfet assorti\s/ })
     .first()
     .click();
-  await page.getByLabel(`${uz.pos.quantity}: Armatura 12 mm`).fill("1,5");
-  await expect(page.getByTestId("cart-total")).toHaveText("138 250 so'm");
+  await page.getByLabel(`${uz.pos.quantity}: Shokoladli konfet assorti`).fill("1,5");
+  await expect(page.getByTestId("cart-total")).toHaveText("170 500 so'm");
 
   await page.keyboard.press("F2");
-  await expect(page.getByTestId("payment-total")).toHaveText("138 250 so'm");
-  await page.getByLabel(uz.pos.cash, { exact: true }).fill("150 000");
-  await expect(page.getByTestId("payment-change")).toHaveText("11 750 so'm");
+  await expect(page.getByTestId("payment-total")).toHaveText("170 500 so'm");
+  await page.getByLabel(uz.pos.cash, { exact: true }).fill("180 000");
+  await expect(page.getByTestId("payment-change")).toHaveText("9 500 so'm");
   await page.getByRole("button", { name: uz.pos.confirmSale }).click();
 
   // Chek printerga ketadi, kassa keyingi mijozga tayyor
@@ -49,10 +50,10 @@ test("kassir: skaner, nom bo'yicha qidiruv, kasr miqdor, naqd to'lov va qaytim",
   await page.getByRole("link", { name: uz.pos.openReceipt }).click();
   await page.waitForURL(/\/pos\/sales\/.+/);
   const receipt = page.getByTestId("receipt");
-  await expect(receipt).toContainText("138 250 so'm");
-  await expect(receipt).toContainText("1,5 metr × 9 500 so'm");
+  await expect(receipt).toContainText("170 500 so'm");
+  await expect(receipt).toContainText("1,5 kg × 95 000 so'm");
   await expect(receipt).toContainText(uz.pos.change);
-  await expect(receipt).toContainText("11 750 so'm");
+  await expect(receipt).toContainText("9 500 so'm");
 
   // Savatcha tozalangan
   await page.getByRole("main").getByRole("link", { name: uz.receipt.newSale }).click();
@@ -65,7 +66,7 @@ test("kassir: qopni kasr sonda sotib bo'lmaydi, kartadan ortiqcha to'lov rad eti
   await login(page, "903333333");
   await scan(page, CEMENT_BARCODE);
 
-  const qty = page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`);
+  const qty = page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`);
   await qty.fill("1,5");
   await expect(page.getByText(uz.pos.wholeNumberOnly)).toBeVisible();
   await expect(page.getByRole("button", { name: /To'lov/ })).toBeDisabled();
@@ -89,7 +90,7 @@ test("smeta: tuziladi, kassaga yuklanadi va kartaga sotiladi", async ({ page }) 
   await page.goto("/pos");
 
   await scan(page, CEMENT_BARCODE);
-  await page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`).fill("10");
+  await page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`).fill("10");
   await page.getByRole("button", { name: uz.estimates.estimate, exact: true }).click();
   await page.getByLabel(uz.pos.discount).fill("20 000");
   await page.getByLabel(uz.estimates.customerName).fill(customer);
@@ -97,14 +98,14 @@ test("smeta: tuziladi, kassaga yuklanadi va kartaga sotiladi", async ({ page }) 
   await page.getByRole("button", { name: uz.estimates.create }).click();
 
   await page.waitForURL(/\/pos\/estimates\/.+/);
-  await expect(page.getByTestId("estimate-total")).toHaveText("600 000 so'm");
+  await expect(page.getByTestId("estimate-total")).toHaveText("120 000 so'm");
   await expect(page.getByText(customer)).toBeVisible();
   const estimateUrl = page.url();
 
   await page.getByRole("link", { name: uz.estimates.loadToPos }).click();
   await page.waitForURL(/\/pos$/);
   await expect(page.getByText(uz.pos.pricesFromEstimate)).toBeVisible();
-  await expect(page.getByTestId("cart-total")).toHaveText("600 000 so'm");
+  await expect(page.getByTestId("cart-total")).toHaveText("120 000 so'm");
 
   await page.keyboard.press("F2");
   await page.getByRole("button", { name: uz.pos.allByCard }).click();

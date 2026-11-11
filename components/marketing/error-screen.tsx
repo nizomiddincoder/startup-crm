@@ -1,6 +1,5 @@
 import { buttonVariants } from "@/components/ui/button";
 import { uz } from "@/lib/i18n/uz";
-import { Logo } from "./site-header";
 
 /**
  * 404 va 500 sahifalari uchun umumiy ko'rinish. "Bosh sahifaga qaytish" — oddiy havola
@@ -20,7 +19,7 @@ export function ErrorScreen({
 }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 py-12 text-center">
-      <Logo />
+      <p className="text-lg font-bold text-primary">{uz.app.name}</p>
       <p className="text-7xl font-extrabold tracking-tight text-primary" aria-hidden>
         {code}
       </p>

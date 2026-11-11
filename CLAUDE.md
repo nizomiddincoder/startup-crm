@@ -1,8 +1,9 @@
-# Kassa — qurilish mollari do'konlari uchun SaaS POS
+# Chocolate — shokolad savdo markazi uchun SaaS POS
 
 ## Maqsad
 
-Farg'ona vodiysidagi qurilish mollari do'konlari uchun bulutli kassa va ombor tizimi.
+Shokolad sotuvchi savdo markazi uchun bulutli kassa, ombor, nasiya va hamkor bonusi tizimi.
+(Sotuv sayti — `app/(marketing)`, `app/(campaign)` — olib tashlangan; "hamkor" = eski "usta" tushunchasi, kodda `isMaster`.)
 Bir tizimda ko'p do'kon (multi-tenant). Pilot 2–3 haftada chiqishi kerak.
 
 Loyiha egasi dasturchi emas: tushuntirishlar oddiy so'zlar bilan, o'zbek tilida bo'lsin.

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { t, uz } from "../lib/i18n/uz";
 
-// Seed: Sement M400 — 4780000000011, 62 000 so'm / qop; Gipsokarton — 4780000000059, 68 000 / list.
+// Seed: Qora shokolad 70% — 4780000000011, 14 000 so'm / dona; Sut shokoladi karamel — 4780000000059, 13 000 / dona.
 const CEMENT = "4780000000011";
 const DRYWALL = "4780000000059";
 
@@ -32,14 +32,14 @@ test("navbat: ikkinchi mijozga alohida savatcha, to'langani yopiladi", async ({ 
   await expect(page.getByText(uz.pos.cartEmpty)).toBeVisible();
   await scan(page, DRYWALL);
   await scan(page, DRYWALL);
-  await expect(page.getByTestId("cart-total")).toHaveText("136 000 so'm");
+  await expect(page.getByTestId("cart-total")).toHaveText("26 000 so'm");
 
   // Ikkinchi mijoz to'ladi — uning yorlig'i yopiladi, birinchisi qoladi
   await page.keyboard.press("F2");
   await page.getByRole("button", { name: uz.pos.confirmSale }).click();
   await expect(page.getByTestId("sale-done")).toBeVisible();
   await expect(page.getByTestId("cart-tab")).toHaveCount(1);
-  await expect(page.getByTestId("cart-total")).toHaveText("62 000 so'm");
+  await expect(page.getByTestId("cart-total")).toHaveText("14 000 so'm");
 
   // Qizil tugma bilan tozalash
   page.once("dialog", (d) => d.accept());
@@ -64,7 +64,7 @@ test("smena va qaytarish: naqd sotuv → qisman qaytarish → smena yopiladi", a
   await page.goto("/pos");
   await expect(page.getByTestId("shift-chip")).toContainText(uz.shifts.openShort);
   await scan(page, CEMENT);
-  await page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`).fill("3");
+  await page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`).fill("3");
   await page.keyboard.press("F2");
   await page.getByRole("button", { name: uz.pos.confirmSale }).click();
   await expect(page.getByTestId("sale-done")).toBeVisible();
@@ -73,26 +73,26 @@ test("smena va qaytarish: naqd sotuv → qisman qaytarish → smena yopiladi", a
 
   // 1 qop qaytariladi (naqd)
   await page.getByRole("link", { name: uz.returns.action }).click();
-  await page.getByLabel(`${uz.returns.toReturn}: Sement M400, 50 kg`).fill("1");
-  await expect(page.getByTestId("return-total")).toHaveText("62 000 so'm");
+  await page.getByLabel(`${uz.returns.toReturn}: Qora shokolad 70%, 100 g`).fill("1");
+  await expect(page.getByTestId("return-total")).toHaveText("14 000 so'm");
   await page.getByRole("radio", { name: uz.paymentMethods.CASH }).click();
   await page.getByLabel(uz.returns.reason).fill("E2E test");
   await page.getByRole("button", { name: uz.returns.confirm }).click();
   await page.waitForURL(/\/pos\/sales\/[^/]+$/);
-  await expect(page.getByTestId("sale-returns")).toContainText("62 000 so'm");
+  await expect(page.getByTestId("sale-returns")).toContainText("14 000 so'm");
 
   // Bugungi sotuvlar: qaytarish ro'yxatda va tushumdan ayirilgan
   await page.goto("/pos/sales");
   await expect(page.getByTestId("sales-summary")).toContainText(uz.receipt.returnsSum);
 
-  // Smena: 100 000 + 186 000 − 62 000 = 224 000; 220 000 sanaldi → 4 000 kamomad
+  // Smena: 100 000 + 42 000 − 14 000 = 128 000; 125 000 sanaldi → 3 000 kamomad
   await page.goto("/pos/shifts");
-  await expect(page.getByTestId("shift-expected")).toHaveText("224 000 so'm");
-  await page.getByLabel(uz.shifts.countedCash).fill("220 000");
+  await expect(page.getByTestId("shift-expected")).toHaveText("128 000 so'm");
+  await page.getByLabel(uz.shifts.countedCash).fill("125 000");
   await page.getByRole("button", { name: uz.shifts.close }).click();
   await expect(page.getByText(/Smena № \d+ yopildi/)).toBeVisible();
   await expect(page.getByTestId("shift-row").first()).toContainText(
-    `${uz.shifts.shortage}: 4 000 so'm`,
+    `${uz.shifts.shortage}: 3 000 so'm`,
   );
 });
 

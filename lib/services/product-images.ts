@@ -24,6 +24,7 @@ const UNIT_EN: Record<Unit, string> = {
   PACK: "the pack",
   ROLL: "the roll",
   SHEET: "the sheet",
+  BOX: "the box",
 };
 
 export type ImageDeps = { ai?: typeof geminiImage };

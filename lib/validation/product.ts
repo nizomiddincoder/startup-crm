@@ -14,6 +14,7 @@ export const UNITS = [
   "PACK",
   "ROLL",
   "SHEET",
+  "BOX",
 ] as const;
 export type UnitValue = (typeof UNITS)[number];
 

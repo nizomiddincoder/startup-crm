@@ -1,4 +1,5 @@
 import {
+  Archive,
   Box,
   Boxes,
   Droplet,
@@ -26,6 +27,7 @@ const byUnit: Record<UnitValue, LucideIcon> = {
   PACK: Package,
   ROLL: ScrollText,
   SHEET: Layers,
+  BOX: Archive,
 };
 
 export function UnitIcon({

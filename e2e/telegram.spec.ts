@@ -42,7 +42,7 @@ test("Yordam: har rolda bor, muammo xabari yuboriladi va admin ko'radi", async (
   await login(admin, "900000000");
   await admin.getByRole("link", { name: uz.support.adminNav }).click();
   const row = admin.getByTestId("support-row").filter({ hasText: text });
-  await expect(row).toContainText("Demo Qurilish Mollari");
+  await expect(row).toContainText("Chocolate savdo markazi (demo)");
   await expect(row).toContainText("/pos");
   await row.getByRole("button", { name: uz.support.resolve }).click();
   await expect(row.getByRole("button", { name: uz.support.reopen })).toBeVisible();

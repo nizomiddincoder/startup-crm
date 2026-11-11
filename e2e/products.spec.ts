@@ -74,7 +74,7 @@ test("takroriy shtrix-kod xato beradi", async ({ page }) => {
   await page.goto("/dashboard/products/new");
   await page.locator("#name").fill("E2E takror");
   await page.locator("#salePrice").fill("1000");
-  await page.locator("#barcode").fill("4780000000011"); // seed'dagi Sement M400
+  await page.locator("#barcode").fill("4780000000011"); // seed'dagi Qora shokolad 70%
   await page.getByRole("button", { name: uz.common.save }).click();
   await expect(page.getByText(uz.products.barcodeTaken)).toBeVisible();
 });
@@ -82,7 +82,7 @@ test("takroriy shtrix-kod xato beradi", async ({ page }) => {
 test("omborchi mahsulotlarni ko'radi, lekin o'zgartira olmaydi", async ({ page }) => {
   await login(page, "904444444");
   await page.goto("/dashboard/products");
-  await expect(page.getByRole("row", { name: /Sement M400/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Qora shokolad 70%, 100 g/ })).toBeVisible();
   await expect(page.getByRole("link", { name: uz.products.add })).toHaveCount(0);
   await page.goto("/dashboard/products/new");
   await expect(page).toHaveURL(/\/dashboard\/products$/);

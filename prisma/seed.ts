@@ -12,12 +12,12 @@ import {
 const prisma = new PrismaClient();
 
 const categories = [
-  { id: "demo-c-cement", name: "Sement va quruq aralashmalar" },
-  { id: "demo-c-metal", name: "Armatura va metall" },
-  { id: "demo-c-brick", name: "G'isht va bloklar" },
-  { id: "demo-c-drywall", name: "Gipsokarton va profil" },
-  { id: "demo-c-paint", name: "Bo'yoqlar" },
-  { id: "demo-c-bulk", name: "Qum va shag'al" },
+  { id: "demo-c-dark", name: "Qora shokolad" },
+  { id: "demo-c-milk", name: "Sut shokoladi" },
+  { id: "demo-c-white", name: "Oq shokolad" },
+  { id: "demo-c-candy", name: "Konfetlar" },
+  { id: "demo-c-gift", name: "Sovg'a to'plamlari" },
+  { id: "demo-c-pack", name: "Vafli va qadoqlash" },
 ];
 
 // Narxlar taxminiy, so'mda. Shtrix-kodlar sinov uchun o'ylab topilgan.
@@ -30,131 +30,131 @@ const products: {
   barcode: string | null;
 }[] = [
   {
-    name: "Sement M400, 50 kg",
-    categoryId: "demo-c-cement",
-    unit: "BAG",
-    salePrice: 62000,
-    costPrice: 55000,
+    name: "Qora shokolad 70%, 100 g",
+    categoryId: "demo-c-dark",
+    unit: "PIECE",
+    salePrice: 14000,
+    costPrice: 11000,
     barcode: "4780000000011",
   },
   {
-    name: "Sement M500, 50 kg",
-    categoryId: "demo-c-cement",
-    unit: "BAG",
-    salePrice: 70000,
-    costPrice: 62000,
+    name: "Qora shokolad 85%, 100 g",
+    categoryId: "demo-c-dark",
+    unit: "PIECE",
+    salePrice: 16000,
+    costPrice: 12500,
     barcode: "4780000000028",
   },
   {
-    name: "Shpaklyovka finish, 25 kg",
-    categoryId: "demo-c-cement",
-    unit: "BAG",
-    salePrice: 85000,
-    costPrice: 74000,
+    name: "Qora shokolad 70%, karton (24 dona)",
+    categoryId: "demo-c-dark",
+    unit: "BOX",
+    salePrice: 320000,
+    costPrice: 262000,
     barcode: "4780000000035",
   },
   {
-    name: "Plitka yelimi, 25 kg",
-    categoryId: "demo-c-cement",
-    unit: "BAG",
-    salePrice: 58000,
-    costPrice: 50000,
+    name: "Sut shokoladi Alpen Gold, 90 g",
+    categoryId: "demo-c-milk",
+    unit: "PIECE",
+    salePrice: 12000,
+    costPrice: 9500,
     barcode: "4780000000042",
   },
   {
-    name: "Armatura 12 mm",
-    categoryId: "demo-c-metal",
-    unit: "METER",
-    salePrice: 9500,
-    costPrice: 8200,
-    barcode: null,
-  },
-  {
-    name: "Armatura 12 mm (tonna)",
-    categoryId: "demo-c-metal",
-    unit: "TON",
-    salePrice: 10800000,
-    costPrice: 9900000,
-    barcode: null,
-  },
-  {
-    name: "Sim 1.2 mm (bog'lash)",
-    categoryId: "demo-c-metal",
-    unit: "KG",
-    salePrice: 18000,
-    costPrice: 15000,
-    barcode: null,
-  },
-  {
-    name: "G'isht pishgan, M100",
-    categoryId: "demo-c-brick",
+    name: "Sut shokoladi karamel, 100 g",
+    categoryId: "demo-c-milk",
     unit: "PIECE",
-    salePrice: 1300,
-    costPrice: 1050,
-    barcode: null,
-  },
-  {
-    name: "Gazoblok 600×300×200",
-    categoryId: "demo-c-brick",
-    unit: "CUBIC_METER",
-    salePrice: 780000,
-    costPrice: 690000,
-    barcode: null,
-  },
-  {
-    name: "Gipsokarton 12.5 mm, 1.2×2.5 m",
-    categoryId: "demo-c-drywall",
-    unit: "SHEET",
-    salePrice: 68000,
-    costPrice: 59000,
+    salePrice: 13000,
+    costPrice: 10000,
     barcode: "4780000000059",
   },
   {
-    name: "Profil CD-60, 3 m",
-    categoryId: "demo-c-drywall",
-    unit: "PIECE",
-    salePrice: 24000,
-    costPrice: 20000,
+    name: "Sut shokoladi, karton (30 dona)",
+    categoryId: "demo-c-milk",
+    unit: "BOX",
+    salePrice: 330000,
+    costPrice: 270000,
     barcode: "4780000000066",
   },
   {
-    name: "Profil UD-27, 3 m",
-    categoryId: "demo-c-drywall",
+    name: "Oq shokolad, 100 g",
+    categoryId: "demo-c-white",
     unit: "PIECE",
-    salePrice: 17000,
-    costPrice: 14000,
+    salePrice: 13500,
+    costPrice: 10500,
     barcode: "4780000000073",
   },
   {
-    name: "Emulsiya oq, 10 l",
-    categoryId: "demo-c-paint",
-    unit: "PIECE",
-    salePrice: 165000,
-    costPrice: 140000,
-    barcode: "4780000000080",
-  },
-  {
-    name: "Emal PF-115 jigarrang",
-    categoryId: "demo-c-paint",
-    unit: "LITER",
-    salePrice: 42000,
-    costPrice: 35000,
-    barcode: "4780000000097",
-  },
-  {
-    name: "Qum (yuvilgan)",
-    categoryId: "demo-c-bulk",
-    unit: "CUBIC_METER",
-    salePrice: 180000,
-    costPrice: 150000,
+    name: "Oq shokolad (ulgurji)",
+    categoryId: "demo-c-white",
+    unit: "KG",
+    salePrice: 115000,
+    costPrice: 95000,
     barcode: null,
   },
   {
-    name: "Shag'al 5–20 mm",
-    categoryId: "demo-c-bulk",
-    unit: "TON",
-    salePrice: 210000,
-    costPrice: 175000,
+    name: "Shokoladli konfet assorti",
+    categoryId: "demo-c-candy",
+    unit: "KG",
+    salePrice: 95000,
+    costPrice: 78000,
+    barcode: null,
+  },
+  {
+    name: "Pralinalar qutisi, 200 g",
+    categoryId: "demo-c-candy",
+    unit: "PIECE",
+    salePrice: 42000,
+    costPrice: 33000,
+    barcode: "4780000000080",
+  },
+  {
+    name: "Yong'oqli konfet (ulgurji)",
+    categoryId: "demo-c-candy",
+    unit: "KG",
+    salePrice: 105000,
+    costPrice: 88000,
+    barcode: null,
+  },
+  {
+    name: "Sovg'a to'plami «Bayram», 500 g",
+    categoryId: "demo-c-gift",
+    unit: "PIECE",
+    salePrice: 98000,
+    costPrice: 80000,
+    barcode: "4780000000097",
+  },
+  {
+    name: "Sovg'a to'plami «Premium», 1 kg",
+    categoryId: "demo-c-gift",
+    unit: "PIECE",
+    salePrice: 185000,
+    costPrice: 150000,
+    barcode: "4780000000103",
+  },
+  {
+    name: "Shokoladli vafli, 40 g",
+    categoryId: "demo-c-pack",
+    unit: "PIECE",
+    salePrice: 3000,
+    costPrice: 2300,
+    barcode: "4780000000110",
+  },
+  {
+    name: "Vafli pachka (10 dona)",
+    categoryId: "demo-c-pack",
+    unit: "PACK",
+    salePrice: 28000,
+    costPrice: 22000,
+    barcode: null,
+  },
+  {
+    name: "Qadoqlash lentasi (rulon)",
+    categoryId: "demo-c-pack",
+    unit: "ROLL",
+    salePrice: 15000,
+    costPrice: 11000,
     barcode: null,
   },
 ];
@@ -172,8 +172,8 @@ async function main() {
     create: { id: PLATFORM_TENANT_ID, name: "Platforma" },
   });
   const demoShop = {
-    name: "Demo Qurilish Mollari",
-    address: "Farg'ona sh., Qurilish bozori, 12-do'kon",
+    name: "Chocolate savdo markazi (demo)",
+    address: "Farg'ona sh., savdo markazi, 1-do'kon",
     phone: "+998 90 111 11 11",
   };
   await prisma.tenant.upsert({
@@ -199,6 +199,12 @@ async function main() {
     });
   }
 
+  // Shtrix-kodlar do'kon ichida yagona: eski seed'dan qolgan kodlar yangi mahsulotlarga
+  // o'tib qolmasligi uchun avval bo'shatiladi (qayta seed qilish xavfsiz bo'lsin)
+  await prisma.product.updateMany({
+    where: { tenantId: DEMO_TENANT_ID },
+    data: { barcode: null },
+  });
   for (const [i, p] of products.entries()) {
     const id = `demo-p-${i + 1}`;
     await prisma.product.upsert({
@@ -208,18 +214,18 @@ async function main() {
     });
   }
 
-  // Mijozlar va ustalar
+  // Mijozlar: hamkorlar (kiosk egalari, bonus oladi) va oddiy xaridorlar
   const customers = [
     {
       id: "demo-cu-1",
-      name: "Usta Rustam (Quva)",
+      name: "Hamkor Rustam (Chilonzor do'koni)",
       phone: "+998915550001",
       isMaster: true,
       bonusPercent: "3",
     },
     {
       id: "demo-cu-2",
-      name: "Usta Sherzod",
+      name: "Hamkor Sherzod (Oqtepa kafesi)",
       phone: "+998915550002",
       isMaster: true,
       bonusPercent: "2.5",
@@ -240,34 +246,34 @@ async function main() {
     });
   }
 
-  // Minimal qoldiq (kam qolganda ogohlantirish) — bir nechta mahsulot uchun
+  // Minimal qoldiq (kam qolganda ogohlantirish)
   await prisma.product.updateMany({
-    where: { id: { in: ["demo-p-1", "demo-p-2"] } },
+    where: { id: { in: ["demo-p-1", "demo-p-2", "demo-p-14"] } },
     data: { minStock: "20" },
   });
-  await prisma.product.update({ where: { id: "demo-p-8" }, data: { minStock: "1000" } });
+  await prisma.product.update({ where: { id: "demo-p-14" }, data: { minStock: "50" } });
 
   // Boshlang'ich qoldiq — faqat birinchi marta (qayta seed qilinganda qoldiq ikki baravar oshmasin)
   const hasStock = await prisma.stockDocument.count({ where: { tenantId: DEMO_TENANT_ID } });
   if (!hasStock) {
     const storekeeper = await prisma.user.findUniqueOrThrow({ where: { phone: "+998904444444" } });
     const initial: Record<string, string> = {
-      "demo-p-1": "150", // Sement M400 (qop)
-      "demo-p-2": "15", // Sement M500 — kam qoldi
-      "demo-p-3": "40",
-      "demo-p-4": "60",
-      "demo-p-5": "800", // Armatura (metr)
-      "demo-p-6": "2.5", // Armatura (tonna)
-      "demo-p-7": "120",
-      "demo-p-8": "5000", // G'isht (dona)
-      "demo-p-9": "12.6",
-      "demo-p-10": "80",
-      "demo-p-11": "300",
-      "demo-p-12": "250",
-      "demo-p-13": "25",
-      "demo-p-14": "40",
-      "demo-p-15": "30",
-      "demo-p-16": "45",
+      "demo-p-1": "150", // Qora 70% (dona)
+      "demo-p-2": "15", // Qora 85% — kam qoldi
+      "demo-p-3": "12", // Qora karton
+      "demo-p-4": "60", // Alpen Gold (dona)
+      "demo-p-5": "40", // Karamel (dona)
+      "demo-p-6": "8", // Sut karton
+      "demo-p-7": "80", // Oq shokolad (dona)
+      "demo-p-8": "250", // Oq ulgurji (kg)
+      "demo-p-9": "120", // Konfet assorti (kg)
+      "demo-p-10": "25", // Pralinalar (dona)
+      "demo-p-11": "60", // Yong'oqli konfet (kg)
+      "demo-p-12": "40", // Bayram to'plami (dona)
+      "demo-p-13": "15", // Premium to'plam (dona)
+      "demo-p-14": "500", // Vafli (dona)
+      "demo-p-15": "60", // Vafli pachka
+      "demo-p-16": "30", // Lenta (rulon)
     };
     const { lastStockDocNumber } = await prisma.tenant.update({
       where: { id: DEMO_TENANT_ID },

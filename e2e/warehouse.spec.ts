@@ -82,16 +82,16 @@ test("omborchi qoldiqlarni ko'radi va hujjat yarata oladi", async ({ page }) => 
   await expect(page.getByRole("heading", { name: uz.warehouse.stockTitle })).toBeVisible();
   await expect(page.getByRole("link", { name: uz.warehouse.receipt })).toBeVisible();
 
-  // "Faqat kam qolganlar" — seed'da Sement M500: 15 qop, minimal 20
+  // "Faqat kam qolganlar" — seed'da Qora shokolad 85%: 15 dona, minimal 20
   await page.getByLabel(uz.warehouse.lowOnly).check();
   await page.getByRole("button", { name: uz.common.search }).click();
-  await expect(page.getByTestId("stock-row").filter({ hasText: "Sement M500" })).toBeVisible();
+  await expect(page.getByTestId("stock-row").filter({ hasText: "Qora shokolad 85%" })).toBeVisible();
 });
 
 test("kassa qidiruvida ombor qoldig'i ko'rinadi", async ({ page }) => {
   await login(page, "903333333");
-  await page.getByLabel(uz.pos.searchPlaceholder).fill("Sement M500");
-  await expect(page.getByRole("option", { name: /Sement M500/ })).toContainText(
+  await page.getByLabel(uz.pos.searchPlaceholder).fill("Qora shokolad 85%");
+  await expect(page.getByRole("option", { name: /Qora shokolad 85%/ })).toContainText(
     uz.warehouse.inStock,
   );
 });

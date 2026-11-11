@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { marketing as m } from "../lib/i18n/marketing.uz";
 import { uz } from "../lib/i18n/uz";
 
 async function login(page: Page, phone: string) {
@@ -31,19 +30,6 @@ test("yangilik: admin yozadi va chop etadi → sayt, poster, kassir dasturida", 
   await admin.getByRole("button", { name: uz.news.publish }).click();
   await expect(admin.getByRole("status")).toContainText("Chop etildi");
   await admin.close();
-
-  // Sayt: yangiliklar sahifasi va tepadagi poster
-  const visitor = await browser.newPage();
-  await visitor.goto("/yangiliklar");
-  await expect(visitor.getByTestId("site-news").filter({ hasText: title })).toBeVisible();
-  await visitor.goto("/narxlar");
-  await expect(visitor.getByTestId("news-poster")).toContainText(title);
-  await visitor
-    .getByTestId("news-poster")
-    .getByRole("button", { name: m.news.posterClose })
-    .click();
-  await expect(visitor.getByTestId("news-poster")).toHaveCount(0);
-  await visitor.close();
 
   // Kassir: qo'ng'iroqchada o'qilmagan → ochadi → belgi yo'qoladi
   const cashier = await browser.newPage();

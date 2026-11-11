@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
 
-// Seed: Sement M400 — 4780000000011, 62 000 so'm / qop.
+// Seed: Qora shokolad 70% — 4780000000011, 14 000 so'm / dona.
 const CEMENT_BARCODE = "4780000000011";
 
 async function login(page: Page, phone: string) {
@@ -26,7 +26,7 @@ test("kassir: yangi mijoz, qisman nasiya, chek, keyin qarz to'lovi", async ({ pa
   await login(page, "903333333");
 
   await scan(page, CEMENT_BARCODE);
-  await page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`).fill("2");
+  await page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`).fill("2");
 
   // Mijoz yo'q — nasiya maydoni yopiq
   // To'lov oynasi: mijoz yo'q — nasiya maydoni yopiq
@@ -40,14 +40,14 @@ test("kassir: yangi mijoz, qisman nasiya, chek, keyin qarz to'lovi", async ({ pa
   await page.getByRole("button", { name: uz.common.save, exact: true }).click();
   await expect(page.getByTestId("picked-customer")).toHaveText(name);
 
-  // Usta: seed'dagi Usta Rustam
+  // Usta: seed'dagi Hamkor Rustam
   await page.getByLabel(uz.customers.master, { exact: true }).fill("Rustam");
-  await page.getByRole("button", { name: /Usta Rustam/ }).click();
-  await expect(page.getByTestId("picked-master")).toContainText("Usta Rustam");
+  await page.getByRole("button", { name: /Hamkor Rustam/ }).click();
+  await expect(page.getByTestId("picked-master")).toContainText("Hamkor Rustam");
 
-  // 124 000: 24 000 naqd + 100 000 nasiya
-  await page.getByLabel(uz.pos.cash, { exact: true }).fill("24 000");
-  await page.getByLabel(uz.pos.debt, { exact: true }).fill("100 000");
+  // 28 000: 8 000 naqd + 20 000 nasiya
+  await page.getByLabel(uz.pos.cash, { exact: true }).fill("8 000");
+  await page.getByLabel(uz.pos.debt, { exact: true }).fill("20 000");
   await page.getByLabel(uz.customers.dueDate).fill("2026-12-01");
   await page.getByRole("button", { name: uz.pos.confirmSale }).click();
   await expect(page.getByTestId("sale-done")).toBeVisible();
@@ -57,18 +57,18 @@ test("kassir: yangi mijoz, qisman nasiya, chek, keyin qarz to'lovi", async ({ pa
   const receipt = page.getByTestId("receipt");
   await expect(receipt).toContainText(name);
   await expect(receipt).toContainText(uz.paymentMethods.DEBT);
-  await expect(receipt).toContainText("100 000 so'm");
+  await expect(receipt).toContainText("20 000 so'm");
   await expect(receipt).toContainText("01.12.2026");
   await expect(receipt).not.toContainText("Rustam"); // usta chekda ko'rinmaydi
 
-  // Mijoz sahifasi: qarz 100 000 → 40 000 to'lov → 60 000
+  // Mijoz sahifasi: qarz 20 000 → 8 000 to'lov → 12 000
   await page.goto(`/pos/customers?q=${encodeURIComponent(name)}`);
   await page.getByRole("link", { name }).click();
-  await expect(page.getByTestId("customer-debt")).toHaveText("100 000 so'm");
+  await expect(page.getByTestId("customer-debt")).toHaveText("20 000 so'm");
   const form = page.getByTestId("debt-payment");
-  await form.getByLabel(uz.customers.amount).fill("40 000");
+  await form.getByLabel(uz.customers.amount).fill("8 000");
   await form.getByRole("button", { name: uz.customers.receivePayment }).click();
-  await expect(page.getByTestId("customer-debt")).toHaveText("60 000 so'm");
+  await expect(page.getByTestId("customer-debt")).toHaveText("12 000 so'm");
   await expect(page.getByTestId("ledger-row")).toHaveCount(2);
 
   // Qarzdan ortiq to'lov rad etiladi
@@ -92,10 +92,10 @@ test("egasi: usta qo'shadi, bonus hisoblanadi va beriladi", async ({ page }) => 
   const masterUrl = page.url();
   await expect(page.getByTestId("customer-bonus")).toHaveText("0 so'm");
 
-  // 2 qop sement = 124 000 → 5% = 6 200
+  // 2 dona shokolad = 28 000 → 5% = 1 400
   await page.goto("/pos");
   await scan(page, CEMENT_BARCODE);
-  await page.getByLabel(`${uz.pos.quantity}: Sement M400, 50 kg`).fill("2");
+  await page.getByLabel(`${uz.pos.quantity}: Qora shokolad 70%, 100 g`).fill("2");
   await page.keyboard.press("F2");
   await page.getByLabel(uz.customers.master, { exact: true }).fill(name);
   await page.getByRole("button", { name: new RegExp(name) }).click();
@@ -103,7 +103,7 @@ test("egasi: usta qo'shadi, bonus hisoblanadi va beriladi", async ({ page }) => 
   await expect(page.getByTestId("sale-done")).toBeVisible();
 
   await page.goto(masterUrl);
-  await expect(page.getByTestId("customer-bonus")).toHaveText("6 200 so'm");
+  await expect(page.getByTestId("customer-bonus")).toHaveText("1 400 so'm");
   const payout = page.getByTestId("bonus-payout");
   await payout.getByRole("button", { name: uz.customers.payBonus }).click();
   await expect(page.getByTestId("customer-bonus")).toHaveText("0 so'm");
@@ -115,7 +115,7 @@ test("kassir ustaning bonusini bera olmaydi va usta belgisini o'zgartira olmaydi
 }) => {
   await login(page, "903333333");
   await page.goto("/pos/customers?masters=1");
-  await page.getByRole("link", { name: /Usta Rustam/ }).click();
+  await page.getByRole("link", { name: /Hamkor Rustam/ }).click();
   await expect(page.getByTestId("bonus-payout")).toHaveCount(0);
   await expect(page.getByText(uz.customers.readOnlyFields)).toBeVisible();
   await expect(page.getByLabel(uz.customers.isMaster)).toHaveCount(0);

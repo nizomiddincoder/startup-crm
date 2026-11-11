@@ -48,7 +48,7 @@ describe("productSchema", () => {
   });
 
   it("noma'lum o'lchov birligini rad etadi", () => {
-    expect(productSchema.safeParse({ ...valid, unit: "BOX" }).success).toBe(false);
+    expect(productSchema.safeParse({ ...valid, unit: "XYZ" }).success).toBe(false);
   });
 
   it("noto'g'ri shtrix-kodni rad etadi", () => {

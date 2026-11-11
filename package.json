@@ -24,7 +24,6 @@
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
     "start:web": "next start",
-    "og": "node scripts/og-image.mjs",
     "app": "node scripts/local-db.mjs --app",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1"
   },
