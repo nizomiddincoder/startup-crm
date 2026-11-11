@@ -27,11 +27,15 @@ export function validateInitData(raw: string, now: Date = new Date()): MiniAppUs
 
   const params = new URLSearchParams(raw);
   const hash = params.get("hash");
+  // Faqat "hash" chiqariladi. "signature" (yangi Telegram maydoni) imzoga KIRADI — uni olib tashlasak tekshiruv buziladi.
   params.delete("hash");
-  params.delete("signature");
   if (!hash) throw new ServiceError(uz.miniapp.invalidInitData);
 
-  const dataCheckString = [...params.entries()].sort().map(([k, v]) => `${k}=${v}`).join("\n");
+  // Rasmiy talab: kalitlar nomi bo'yicha tartiblanadi (kalit=qiymat, qatorlar "\n" bilan)
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("\n");
   const secret = hmac("WebAppData", botToken);
   const computed = hmac(secret, dataCheckString).toString("hex");
   const expected = Buffer.from(hash, "hex");

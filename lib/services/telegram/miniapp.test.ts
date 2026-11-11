@@ -48,6 +48,17 @@ describe("validateInitData", () => {
     expect(validateInitData(raw, now).id).toBe(700000001);
   });
 
+  it("yangi 'signature' maydoni bilan imzolangan — qabul qilinadi", () => {
+    const now = new Date();
+    const raw = signedInitData({
+      auth_date: String(Math.floor(now.getTime() / 1000)),
+      query_id: "AAF1",
+      signature: "MEUCIQDexample-signature",
+      user,
+    });
+    expect(validateInitData(raw, now).id).toBe(700000001);
+  });
+
   it("boshqa token bilan imzolangan — invalidInitData", () => {
     const now = new Date();
     const raw = signedInitData(
