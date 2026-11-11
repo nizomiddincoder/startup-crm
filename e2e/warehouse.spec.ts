@@ -1,13 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
-
-async function login(page: Page, phone: string) {
-  await page.goto("/login");
-  await page.locator("#phone").fill(phone);
-  await page.locator("#password").fill("demo1234");
-  await page.getByRole("button", { name: uz.auth.login }).click();
-  await page.waitForURL(/\/(dashboard|pos|admin)/);
-}
+import { login } from "./helpers";
 
 async function addToDocument(page: Page, name: string) {
   const search = page.getByLabel(uz.warehouse.addProducts);

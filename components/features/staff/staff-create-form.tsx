@@ -64,9 +64,12 @@ export function StaffCreateForm() {
       </form>
       {state.created && (
         <PasswordReveal
-          title={t(uz.staff.newPasswordFor, { name: state.created.name })}
-          login={state.created.phone}
+          title={t(state.created.pin ? uz.staff.newPinFor : uz.staff.newPasswordFor, {
+            name: state.created.name,
+          })}
+          login={state.created.pin ? undefined : state.created.phone}
           password={state.created.password}
+          pin={state.created.pin}
         />
       )}
     </div>

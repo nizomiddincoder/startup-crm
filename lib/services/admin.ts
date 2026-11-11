@@ -86,12 +86,16 @@ export async function setTenantActive(tenantId: string, isActive: boolean) {
  * Admin bor bo'lsa — hech narsani o'zgartirmaydi.
  */
 export async function bootstrapPlatformAdmin(input: {
-  phone: string;
+  login: string;
   password: string;
   name: string;
+  /** Ixtiyoriy: berilmasa — admin faqat login bilan kiradi */
+  phone?: string;
 }): Promise<"created" | "exists" | "invalid"> {
-  const phone = normalizePhone(input.phone);
-  if (!phone || input.password.length < 8) return "invalid";
+  const login = input.login.trim();
+  if (!/^[A-Za-z0-9._-]{3,40}$/.test(login) || input.password.length < 8) return "invalid";
+  const phone = input.phone ? normalizePhone(input.phone) : null;
+  if (input.phone && !phone) return "invalid";
 
   const existing = await db.user.findFirst({ where: { role: "SUPER_ADMIN" } });
   if (existing) return "exists";
@@ -105,10 +109,14 @@ export async function bootstrapPlatformAdmin(input: {
     data: {
       tenantId: PLATFORM_TENANT_ID,
       name: input.name,
-      phone,
+      // Telefon bazada majburiy (yagona). Login bilan kiradigan admin uchun joy-belgi.
+      phone: phone ?? PLATFORM_ADMIN_PLACEHOLDER_PHONE,
+      login,
       role: "SUPER_ADMIN",
       passwordHash: await hashPassword(input.password),
     },
   });
   return "created";
 }
+
+export const PLATFORM_ADMIN_PLACEHOLDER_PHONE = "+998000000000";

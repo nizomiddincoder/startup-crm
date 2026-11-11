@@ -1,15 +1,35 @@
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { loginSchema } from "@/lib/validation/auth";
+import { adminLoginSchema, normalizePhone, pinLoginSchema } from "@/lib/validation/auth";
 import type { Role } from "./permissions";
-import { loginLimiter } from "./rate-limit";
+import { pinKey } from "./pin";
+import { createLimiter, loginLimiter } from "./rate-limit";
 import { consumeChallenge, loginConfirmRequired } from "./telegram/login-confirm";
 
-/** Telefon vaqtincha bloklanganmi (login formasida tushunarli xabar ko'rsatish uchun). */
-export function loginBlockedMinutes(rawPhone: unknown): number | null {
-  const parsed = loginSchema.shape.phone.safeParse(rawPhone);
-  if (!parsed.success) return null;
-  const state = loginLimiter.check(parsed.data);
+/**
+ * Ikki xil kirish, bitta ekranda:
+ *  - kassir: 4 xonali PIN (faqat CASHIER);
+ *  - admin: login (masalan "admin") yoki telefon + parol (egasi, menejer, omborchi, platforma admini).
+ */
+
+/** PIN: bitta IP'dan 15 daqiqada 10 ta xato — 4 xonali kodni terib topishdan himoya. */
+export const pinLimiter = createLimiter(10);
+
+/** Admin: login/telefon bo'yicha vaqtincha bloklanganmi (forma xabari uchun). */
+export function loginBlockedMinutes(identifier: string): number | null {
+  const state = loginLimiter.check(identifier.trim().toLowerCase());
+  return state.blocked ? state.minutes : null;
+}
+
+/** Mijoz IP'si: proksi (Railway) qo'shgan oxirgi qiymat — mijoz uni soxtalashtira olmaydi. */
+export function ipFromHeaders(headers: Headers | undefined): string {
+  const xff = headers?.get("x-forwarded-for");
+  if (xff) return xff.split(",").pop()!.trim();
+  return headers?.get("x-real-ip") ?? "unknown";
+}
+
+export function pinBlockedMinutes(ip: string): number | null {
+  const state = pinLimiter.check(ip);
   return state.blocked ? state.minutes : null;
 }
 
@@ -26,6 +46,7 @@ type UserRecord = {
   id: string;
   name: string;
   phone: string;
+  login?: string | null;
   passwordHash: string;
   role: Role;
   isActive: boolean;
@@ -36,19 +57,31 @@ type UserRecord = {
 };
 
 export type AuthDeps = {
-  findUserByPhone: (phone: string) => Promise<UserRecord | null>;
+  /** Admin kirishi: login yoki telefon bo'yicha (kassir emas) */
+  findAdmin: (identifier: string) => Promise<UserRecord | null>;
+  /** Kassir kirishi: PIN kaliti bo'yicha */
+  findCashierByPinKey: (key: string) => Promise<UserRecord | null>;
   /** Telegramda tasdiqlangan kirish so'rovini bir marta ishlatish */
   consumeChallenge?: (id: string, userId: string) => Promise<boolean>;
 };
 
-// ISTISNO: login paytida tenant hali noma'lum, shuning uchun foydalanuvchi telefon bo'yicha
-// butun bazadan qidiriladi (phone — yagona). Boshqa barcha so'rovlar tenantId bilan filtrlanadi.
+// ISTISNO: login paytida tenant hali noma'lum, shuning uchun foydalanuvchi butun bazadan qidiriladi
+// (login va telefon yagona). Boshqa barcha so'rovlar tenantId bilan filtrlanadi.
+const userInclude = { tenant: { select: { name: true, isActive: true } } } as const;
+
 const defaultDeps: AuthDeps = {
-  findUserByPhone: (phone) =>
-    db.user.findUnique({
-      where: { phone },
-      include: { tenant: { select: { name: true, isActive: true } } },
-    }),
+  findAdmin: (identifier) => {
+    const phone = normalizePhone(identifier);
+    return db.user.findFirst({
+      where: {
+        role: { not: "CASHIER" },
+        OR: [{ login: identifier }, ...(phone ? [{ phone }] : [])],
+      },
+      include: userInclude,
+    });
+  },
+  findCashierByPinKey: (key) =>
+    db.user.findFirst({ where: { pinKey: key, role: "CASHIER" }, include: userInclude }),
   consumeChallenge: (id, userId) => consumeChallenge(id, userId),
 };
 
@@ -57,33 +90,7 @@ export type VerifiedUser = SessionUser & {
   telegramLoginConfirm: boolean;
 };
 
-/**
- * Faqat telefon va parol (Telegram tasdiqisiz). Login formasi birinchi qadamda shu bilan
- * tekshiradi; sessiya ochish — faqat authenticateUser orqali.
- */
-export async function verifyPassword(
-  input: unknown,
-  deps: AuthDeps = defaultDeps,
-): Promise<VerifiedUser | null> {
-  const parsed = loginSchema.safeParse(input);
-  if (!parsed.success) return null;
-  const { phone } = parsed.data;
-
-  // Parolni terib topishdan himoya: telefon bo'yicha 15 daqiqada 5 ta xato urinish
-  if (loginLimiter.check(phone).blocked) return null;
-
-  const user = await deps.findUserByPhone(phone);
-  const ok =
-    !!user &&
-    user.isActive &&
-    user.tenant.isActive &&
-    (await bcrypt.compare(parsed.data.password, user.passwordHash));
-  if (!ok || !user) {
-    loginLimiter.fail(phone);
-    return null;
-  }
-  loginLimiter.reset(phone);
-
+function toVerified(user: UserRecord): VerifiedUser {
   return {
     id: user.id,
     name: user.name,
@@ -96,16 +103,68 @@ export async function verifyPassword(
   };
 }
 
+/** Admin: login/telefon + parol (Telegram tasdiqisiz). */
+export async function verifyAdmin(input: unknown, deps: AuthDeps = defaultDeps): Promise<VerifiedUser | null> {
+  const parsed = adminLoginSchema.safeParse(input);
+  if (!parsed.success) return null;
+  const { identifier, password } = parsed.data;
+  const key = identifier.toLowerCase();
+
+  // Parolni terib topishdan himoya: bir login/telefonda 15 daqiqada 5 ta xato urinish
+  if (loginLimiter.check(key).blocked) return null;
+
+  const user = await deps.findAdmin(identifier);
+  const ok =
+    !!user &&
+    user.isActive &&
+    user.tenant.isActive &&
+    (await bcrypt.compare(password, user.passwordHash));
+  if (!ok || !user) {
+    loginLimiter.fail(key);
+    return null;
+  }
+  loginLimiter.reset(key);
+  return toVerified(user);
+}
+
+/** Kassir: PIN (Telegram tasdiqisiz). IP bo'yicha cheklanadi. */
+export async function verifyPin(
+  input: unknown,
+  ip: string,
+  deps: AuthDeps = defaultDeps,
+): Promise<VerifiedUser | null> {
+  const parsed = pinLoginSchema.safeParse(input);
+  if (!parsed.success) return null;
+  if (pinLimiter.check(ip).blocked) return null;
+
+  const user = await deps.findCashierByPinKey(pinKey(parsed.data.pin));
+  if (!user || !user.isActive || !user.tenant.isActive) {
+    pinLimiter.fail(ip);
+    return null;
+  }
+  pinLimiter.reset(ip);
+  return toVerified(user);
+}
+
 /**
- * Sessiya ochish uchun (Auth.js authorize): parol + kerak bo'lsa Telegramda tasdiqlangan
- * so'rov (`challengeId`). Muvaffaqiyatsiz bo'lsa sababini oshkor qilmasdan null qaytaradi.
+ * Sessiya ochish uchun (Auth.js authorize). `mode`: "pin" yoki "admin".
+ * Kerak bo'lsa Telegramda tasdiqlangan so'rov (`challengeId`) ham tekshiriladi.
+ * Muvaffaqiyatsiz bo'lsa sababini oshkor qilmasdan null qaytaradi.
  */
 export async function authenticateUser(
   input: unknown,
+  ip = "unknown",
   deps: AuthDeps = defaultDeps,
 ): Promise<SessionUser | null> {
-  const user = await verifyPassword(input, deps);
+  const mode = (input as { mode?: unknown } | null)?.mode;
+  const user =
+    mode === "pin"
+      ? await verifyPin(input, ip, deps)
+      : mode === "admin"
+        ? await verifyAdmin(input, deps)
+        : null;
   if (!user) return null;
+
   if (loginConfirmRequired(user)) {
     const challengeId = (input as { challengeId?: unknown } | null)?.challengeId;
     if (typeof challengeId !== "string" || !challengeId) return null;
@@ -171,4 +230,23 @@ export async function revokeSession(
 
 export function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
+}
+
+/**
+ * Admin o'z parolini o'zgartiradi. Eski parol to'g'ri bo'lishi shart. Yangi parol berilgandan
+ * keyin barcha sessiyalar (shu jumladan joriy) yopiladi — qayta kirish talab qilinadi.
+ */
+export async function changeOwnPassword(
+  userId: string,
+  current: string,
+  next: string,
+): Promise<"ok" | "wrong_current"> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+  if (!user) return "wrong_current";
+  if (!(await bcrypt.compare(current, user.passwordHash))) return "wrong_current";
+  await db.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(next), sessionsValidFrom: new Date() },
+  });
+  return "ok";
 }

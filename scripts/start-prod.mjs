@@ -1,7 +1,7 @@
 /**
  * Server (Railway) ishga tushishi — bitta buyruq: npm start
  *   1) bazaga yangi migratsiyalarni qo'llaydi (prisma migrate deploy);
- *   2) birinchi platforma adminini yaratadi (ADMIN_PHONE va ADMIN_PASSWORD berilgan bo'lsa);
+ *   2) birinchi platforma adminini yaratadi (ADMIN_PASSWORD berilgan bo'lsa; login — ADMIN_LOGIN);
  *   3) saytni (next start) va Telegram botni (TELEGRAM_BOT_TOKEN bo'lsa) yoqadi.
  * Sayt to'xtasa — jarayon tugaydi (Railway qayta ishga tushiradi). Bot yiqilsa — 30 soniyadan keyin qayta yoqiladi.
  */
@@ -26,7 +26,7 @@ function runOnce(command) {
 log("Migratsiyalar qo'llanmoqda...");
 runOnce("npx prisma migrate deploy");
 
-if (process.env.ADMIN_PHONE && process.env.ADMIN_PASSWORD) {
+if (process.env.ADMIN_PASSWORD) {
   runOnce("npx tsx scripts/bootstrap-admin.ts");
 }
 

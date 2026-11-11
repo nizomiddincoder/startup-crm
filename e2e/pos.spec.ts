@@ -1,17 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
+import { login } from "./helpers";
 
 // Seed'dagi demo do'kon (prisma/seed.ts): Qora shokolad 70% — 4780000000011, 14 000 so'm / dona;
 // Shokoladli konfet assorti — 95 000 so'm / kg. Testlar demo do'konda haqiqiy sotuvlar yaratadi.
 const CEMENT_BARCODE = "4780000000011";
-
-async function login(page: Page, phone: string) {
-  await page.goto("/login");
-  await page.locator("#phone").fill(phone);
-  await page.locator("#password").fill("demo1234");
-  await page.getByRole("button", { name: uz.auth.login }).click();
-  await page.waitForURL(/\/(dashboard|pos|admin)/);
-}
 
 async function scan(page: Page, code: string) {
   const search = page.getByLabel(uz.pos.searchPlaceholder);

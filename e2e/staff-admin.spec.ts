@@ -1,35 +1,30 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
-
-async function login(page: Page, phone: string, password = "demo1234") {
-  await page.goto("/login");
-  await page.locator("#phone").fill(phone);
-  await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: uz.auth.login }).click();
-  await page.waitForURL(/\/(dashboard|pos|admin)/);
-}
+import { login, pinLogin } from "./helpers";
 
 const randomPhone = () => `95${String(Date.now()).slice(-7)}`;
 
-test("egasi kassir qo'shadi va kassir shu parol bilan kiradi", async ({ page }) => {
+test("egasi kassir qo'shadi va kassir PIN bilan kiradi", async ({ page }) => {
   const phone = randomPhone();
   await login(page, "901111111");
   await page.getByRole("link", { name: uz.nav.staff }).click();
   await page.getByLabel(uz.staff.name).fill(`E2E Kassir ${Date.now()}`);
   await page.getByLabel(uz.staff.phone).fill(phone);
+  await page.getByLabel(uz.staff.role).selectOption("CASHIER");
   await page.getByRole("button", { name: uz.staff.add }).click();
-  const password = (await page.getByTestId("new-password").textContent())?.trim() ?? "";
-  expect(password).toMatch(/^[a-z2-9]{8}$/);
+  // Kassirga PIN beriladi (parol emas)
+  const pin = (await page.getByTestId("new-pin").textContent())?.trim() ?? "";
+  expect(pin).toMatch(/^\d{4}$/);
 
   await page.getByRole("button", { name: uz.auth.logout }).click();
   await page.waitForURL(/\/login/);
-  await login(page, phone, password);
+  await pinLogin(page, pin);
   await expect(page).toHaveURL(/\/pos$/);
 });
 
 test("platforma admini yangi do'kon yaratadi, egasi kiradi", async ({ page }) => {
   const ownerPhone = randomPhone();
-  await login(page, "900000000");
+  await login(page, "admin");
   await expect(page).toHaveURL(/\/admin$/);
   await page.getByLabel(uz.admin.shopName).fill(`E2E Do'kon ${Date.now()}`);
   await page.getByLabel(uz.admin.ownerName).fill("E2E Egasi");

@@ -36,6 +36,7 @@ function navFor(role: Role, unreadNews: number, newOrders: number): NavItem[] {
       { href: "/admin/leads", label: uz.leads.nav, icon: "leads" },
       { href: "/admin/news", label: uz.news.adminTitle, icon: "news" },
       { href: "/admin/support", label: uz.support.adminNav, icon: "support" },
+      { href: "/account", label: uz.account.nav, icon: "settings" },
     ];
   }
 
@@ -69,15 +70,14 @@ function navFor(role: Role, unreadNews: number, newOrders: number): NavItem[] {
     );
   }
   if (canManageStaff(role)) {
-    items.push(
-      { href: "/dashboard/staff", label: uz.nav.staff, icon: "staff" },
-      { href: "/dashboard/settings", label: uz.settings.nav, icon: "settings" },
-    );
+    items.push({ href: "/dashboard/staff", label: uz.nav.staff, icon: "staff" });
   }
   // Telegram: hisobot (egasi/menejer) va kirishni tasdiqlash sozlamasi — panelga kiradigan hamma
   if (dashboard) {
     items.push({ href: "/dashboard/telegram", label: uz.telegram.title, icon: "telegram" });
   }
+  // Hisob sozlamalari (parolni o'zgartirish) — kassir PIN bilan kiradi, shuning uchun unda yo'q
+  if (dashboard) items.push({ href: "/account", label: uz.account.nav, icon: "settings" });
   items.push(news);
   return items;
 }

@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { uz } from "@/lib/i18n/uz";
-import { authenticateUser, verifyPassword } from "../auth";
+import { authenticateUser, verifyAdmin } from "../auth";
 import { createCustomer } from "../customers";
 import { createSupportRequest } from "../support";
 import {
@@ -42,7 +42,7 @@ beforeAll(async () => {
       data: {
         tenantId: shop,
         name: "Kassir Tg",
-        role: "CASHIER",
+        role: "MANAGER",
         phone: userPhone,
         passwordHash: await bcrypt.hash("parol-123", 4),
       },
@@ -61,7 +61,7 @@ describe("xodim raqam orqali ulanadi", () => {
   it("telefon bo'yicha topiladi va chat bog'lanadi; noma'lum raqam — null", async () => {
     const chatId = `chat-${randomUUID()}`;
     const linked = await linkStaffByPhone(userPhone.replace("+998", "+998 "), chatId);
-    expect(linked).toMatchObject({ name: "Kassir Tg", role: "CASHIER", shop: "TG do'kon" });
+    expect(linked).toMatchObject({ name: "Kassir Tg", role: "MANAGER", shop: "TG do'kon" });
     expect((await getStaffByChatId(chatId))?.id).toBe(userId);
     expect(await linkStaffByPhone("+998000000000", chatId)).toBeNull();
   });
@@ -69,8 +69,8 @@ describe("xodim raqam orqali ulanadi", () => {
 
 describe("kirishni Telegramda tasdiqlash", () => {
   it("tasdiqsiz sessiya ochilmaydi; tasdiqlangach bir marta ochiladi", async () => {
-    const creds = { phone: userPhone, password: "parol-123" };
-    const verified = await verifyPassword(creds);
+    const creds = { mode: "admin", identifier: userPhone, password: "parol-123" };
+    const verified = await verifyAdmin(creds);
     expect(verified && loginConfirmRequired(verified)).toBe(true);
 
     // Tasdiqsiz (yoki challengeId'siz) — kirib bo'lmaydi
@@ -103,7 +103,7 @@ describe("kirishni Telegramda tasdiqlash", () => {
 
   it("tasdiqlash o'chirilsa — faqat parol", async () => {
     await db.user.update({ where: { id: userId }, data: { telegramLoginConfirm: false } });
-    expect(await authenticateUser({ phone: userPhone, password: "parol-123" })).toMatchObject({
+    expect(await authenticateUser({ mode: "admin", identifier: userPhone, password: "parol-123" })).toMatchObject({
       id: userId,
     });
     await db.user.update({ where: { id: userId }, data: { telegramLoginConfirm: true } });

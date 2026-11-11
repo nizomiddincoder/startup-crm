@@ -41,12 +41,12 @@ Avval maxfiy kalit yarating (natijani nusxa oling):
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Keyin servisni yarating. `<KALIT>` o'rniga yuqoridagi natijani, `<TELEFON>` va `<PAROL>` o'rniga
-o'zingizning (platforma admini) telefon raqamingiz va kamida 8 belgili parolni yozing.
+Keyin servisni yarating. `<KALIT>` o'rniga yuqoridagi natijani, `<LOGIN>` va `<PAROL>` o'rniga
+platforma admini uchun login (masalan admin) va kamida 8 belgili parolni yozing. Admin parolini keyin «Sozlamalar»dan o'zgartirasiz.
 **Bitta tirnoq (') larni o'chirmang** — PowerShell `$` belgisini buzmasligi uchun kerak.
 
 ```powershell
-npx @railway/cli add --service web --variables 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --variables 'AUTH_SECRET=<KALIT>' --variables 'ADMIN_PHONE=<TELEFON>' --variables 'ADMIN_PASSWORD=<PAROL>' --variables 'ADMIN_NAME=Platforma admini'
+npx @railway/cli add --service web --variables 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --variables 'AUTH_SECRET=<KALIT>' --variables 'ADMIN_LOGIN=admin' --variables 'ADMIN_PASSWORD=<PAROL>' --variables 'ADMIN_NAME=Platforma admini'
 ```
 
 ## 4. Dasturni yuklash

@@ -5,8 +5,8 @@ import { afterAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { uz } from "@/lib/i18n/uz";
 import { bootstrapPlatformAdmin, createTenantWithOwner, setTenantActive } from "./admin";
-import { authenticateUser, isSessionActive, revokeSession } from "./auth";
-import { createStaff, resetStaffPassword, setStaffActive } from "./staff";
+import { authenticateUser, changeOwnPassword, isSessionActive, revokeSession } from "./auth";
+import { createStaff, resetStaffPassword, resetStaffPin, setStaffActive } from "./staff";
 
 const createdTenants: string[] = [];
 
@@ -23,6 +23,8 @@ const sess = (
   sid,
 });
 const phone = () => `9${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+// Har test o'z IP'sidan — PIN cheklovi testlar orasida to'qnashmasin
+const ipFor = () => `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.1`;
 
 async function newShop() {
   const ownerPhone = phone();
@@ -45,13 +47,14 @@ describe("admin: do'kon yaratish", () => {
   it("egasi bir martalik parol bilan kira oladi; do'kon o'chirilsa — kira olmaydi", async () => {
     const shop = await newShop();
     expect(shop.password).toMatch(/^[a-z2-9]{8}$/);
-    const user = await authenticateUser({ phone: shop.owner.phone, password: shop.password });
+    const creds = { mode: "admin", identifier: shop.owner.phone, password: shop.password };
+    const user = await authenticateUser(creds, ipFor());
     expect(user).toMatchObject({ role: "OWNER", tenantId: shop.tenantId });
 
     // Kirib turgan egasi ham darhol chiqariladi (sessiya har safar tekshiriladi)
     expect(await isSessionActive(sess(shop.owner.id, shop.tenantId, Date.now()))).toBe(true);
     await setTenantActive(shop.tenantId, false);
-    expect(await authenticateUser({ phone: shop.owner.phone, password: shop.password })).toBeNull();
+    expect(await authenticateUser(creds, ipFor())).toBeNull();
     expect(await isSessionActive(sess(shop.owner.id, shop.tenantId, Date.now()))).toBe(false);
     await setTenantActive(shop.tenantId, true);
     expect(await isSessionActive(sess(shop.owner.id, shop.tenantId, Date.now()))).toBe(true);
@@ -83,39 +86,95 @@ describe("admin: do'kon yaratish", () => {
   });
 
   it("platforma admini allaqachon bo'lsa, qayta yaratilmaydi; qisqa parol rad etiladi", async () => {
-    expect(await bootstrapPlatformAdmin({ phone: "901112233", password: "123", name: "A" })).toBe(
+    expect(await bootstrapPlatformAdmin({ login: "admin", password: "123", name: "A" })).toBe(
       "invalid",
     );
     const exists = await db.user.count({ where: { role: "SUPER_ADMIN" } });
     if (exists) {
       expect(
-        await bootstrapPlatformAdmin({ phone: "901112233", password: "uzunparol1", name: "A" }),
+        await bootstrapPlatformAdmin({ login: "admin", password: "uzunparol1", name: "A" }),
       ).toBe("exists");
     }
   });
 });
 
 describe("xodimlar", () => {
-  it("yangi kassir paroli ishlaydi; bloklansa kira olmaydi; yangi parol eskisini bekor qiladi", async () => {
+  it("kassir PIN bilan kiradi; PIN yangilansa eskisi ishlamaydi; bloklansa kira olmaydi", async () => {
     const shop = await newShop();
-    const { user, password } = await createStaff(shop.tenantId, {
+    const { user, pin } = await createStaff(shop.tenantId, {
       name: "Kassir",
       phone: phone(),
       role: "CASHIER",
     });
-    expect(await authenticateUser({ phone: user.phone, password })).toMatchObject({
+    if (!pin) throw new Error("kassir uchun PIN qaytishi kerak");
+    expect(pin).toMatch(/^\d{4}$/);
+    expect(await authenticateUser({ mode: "pin", pin }, ipFor())).toMatchObject({
       role: "CASHIER",
+      id: user.id,
     });
+
+    const newPin = await resetStaffPin(shop.tenantId, shop.owner.id, user.id);
+    expect(newPin).toMatch(/^\d{4}$/);
+    expect(await authenticateUser({ mode: "pin", pin: newPin }, ipFor())).not.toBeNull();
+
+    await setStaffActive(shop.tenantId, shop.owner.id, user.id, false);
+    expect(await authenticateUser({ mode: "pin", pin: newPin }, ipFor())).toBeNull();
+    expect(await isSessionActive(sess(user.id, shop.tenantId, Date.now()))).toBe(false);
+  });
+
+  it("menejer parol bilan kiradi; yangi parol eski sessiyalarni yopadi", async () => {
+    const shop = await newShop();
+    const { user, password } = await createStaff(shop.tenantId, {
+      name: "Menejer",
+      phone: phone(),
+      role: "MANAGER",
+    });
+    if (!password) throw new Error("menejer uchun parol qaytishi kerak");
+    expect(
+      await authenticateUser({ mode: "admin", identifier: user.phone, password }, ipFor()),
+    ).toMatchObject({ role: "MANAGER" });
 
     const before = Date.now() - 1000;
     const newPassword = await resetStaffPassword(shop.tenantId, shop.owner.id, user.id);
-    expect(await authenticateUser({ phone: user.phone, password: newPassword })).not.toBeNull();
+    expect(
+      await authenticateUser({ mode: "admin", identifier: user.phone, password: newPassword }, ipFor()),
+    ).not.toBeNull();
     // Eski parol bilan ochilgan sessiya yopildi
     expect(await isSessionActive(sess(user.id, shop.tenantId, before))).toBe(false);
+  });
 
-    await setStaffActive(shop.tenantId, shop.owner.id, user.id, false);
-    expect(await authenticateUser({ phone: user.phone, password: newPassword })).toBeNull();
-    expect(await isSessionActive(sess(user.id, shop.tenantId, Date.now()))).toBe(false);
+  it("kassirga parol berib bo'lmaydi, PIN berib bo'lmaydi (xodim menejer bo'lsa)", async () => {
+    const shop = await newShop();
+    const { user } = await createStaff(shop.tenantId, { name: "K", phone: phone(), role: "CASHIER" });
+    await expect(resetStaffPassword(shop.tenantId, shop.owner.id, user.id)).rejects.toMatchObject({
+      message: uz.staff.usePin,
+    });
+    const { user: manager } = await createStaff(shop.tenantId, {
+      name: "M",
+      phone: phone(),
+      role: "MANAGER",
+    });
+    await expect(resetStaffPin(shop.tenantId, shop.owner.id, manager.id)).rejects.toMatchObject({
+      message: uz.staff.notCashier,
+    });
+  });
+
+  it("egasi parolni sozlamada o'zgartiradi: eski parol kerak; yangisi bilan kiradi", async () => {
+    const shop = await newShop();
+    expect(await changeOwnPassword(shop.owner.id, "noto'g'ri", "yangiparol1")).toBe("wrong_current");
+    expect(await changeOwnPassword(shop.owner.id, shop.password, "yangiparol1")).toBe("ok");
+    expect(
+      await authenticateUser(
+        { mode: "admin", identifier: shop.owner.phone, password: "yangiparol1" },
+        ipFor(),
+      ),
+    ).toMatchObject({ role: "OWNER" });
+    expect(
+      await authenticateUser(
+        { mode: "admin", identifier: shop.owner.phone, password: shop.password },
+        ipFor(),
+      ),
+    ).toBeNull();
   });
 
   it("egasi o'zini va boshqa do'kon xodimini o'zgartira olmaydi", async () => {
@@ -128,7 +187,7 @@ describe("xodimlar", () => {
     await expect(setStaffActive(a.tenantId, a.owner.id, user.id, false)).rejects.toMatchObject({
       message: uz.staff.notFound,
     });
-    await expect(resetStaffPassword(a.tenantId, a.owner.id, user.id)).rejects.toMatchObject({
+    await expect(resetStaffPin(a.tenantId, a.owner.id, user.id)).rejects.toMatchObject({
       message: uz.staff.notFound,
     });
   });

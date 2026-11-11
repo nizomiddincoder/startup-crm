@@ -1,17 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { t, uz } from "../lib/i18n/uz";
+import { login } from "./helpers";
 
 // Seed: demo do'kon, Qora shokolad 70% — 14 000 so'm / dona. Menejer 902222222, kassir 903333333.
 const CEMENT_NAME = "Qora shokolad 70%, 100 g";
-
-async function login(page: Page, phone: string) {
-  await page.goto("/login");
-  await page.locator("#phone").fill(phone);
-  await page.locator("#password").fill("demo1234");
-  await page.getByRole("button", { name: uz.auth.login }).click();
-  await page.waitForURL(/\/(dashboard|pos|admin)/);
-}
 
 test.describe.configure({ mode: "serial" });
 

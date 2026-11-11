@@ -4,10 +4,12 @@ import { PrismaClient, type Unit } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import {
   DEMO_PASSWORD,
+  DEMO_PIN,
   DEMO_TENANT_ID,
   DEMO_USERS as users,
   PLATFORM_TENANT_ID,
 } from "../lib/demo";
+import { pinKey } from "../lib/services/pin";
 
 const prisma = new PrismaClient();
 
@@ -184,10 +186,15 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   for (const u of users) {
+    // Kassir — PIN bilan kiradi; admin — login (agar bor bo'lsa) yoki telefon + parol
+    const access = {
+      login: u.login ?? null,
+      pinKey: u.role === "CASHIER" ? pinKey(DEMO_PIN) : null,
+    };
     await prisma.user.upsert({
       where: { phone: u.phone },
-      update: { name: u.name, role: u.role, tenantId: u.tenantId, passwordHash },
-      create: { ...u, passwordHash },
+      update: { name: u.name, role: u.role, tenantId: u.tenantId, passwordHash, ...access },
+      create: { ...u, passwordHash, ...access },
     });
   }
 

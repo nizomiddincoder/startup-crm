@@ -25,9 +25,24 @@ export const phoneSchema = z
     return phone;
   });
 
-export const loginSchema = z.object({
-  phone: phoneSchema,
+/** Admin kirishi: login (masalan "admin") yoki telefon + parol. */
+export const adminLoginSchema = z.object({
+  identifier: z.string().trim().min(1, uz.validation.required).max(60, uz.validation.tooLong),
   password: z.string().min(6, uz.validation.minPassword),
 });
 
-export type LoginInput = z.input<typeof loginSchema>;
+/** Admin o'z parolini o'zgartirishi: eski parol, yangi parol (kamida 8), takror. */
+export const passwordChangeSchema = z
+  .object({
+    current: z.string().min(1, uz.validation.required),
+    next: z.string().min(8, uz.account.minPassword).max(100, uz.validation.tooLong),
+    repeat: z.string(),
+  })
+  .refine((d) => d.next === d.repeat, { path: ["repeat"], message: uz.account.mismatch });
+
+/** Kassir kirishi: 4 xonali PIN. */
+export const pinLoginSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/, uz.validation.invalidPin),
+});
+
+export type AdminLoginInput = z.input<typeof adminLoginSchema>;

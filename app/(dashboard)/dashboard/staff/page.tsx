@@ -63,6 +63,7 @@ export default async function StaffPage() {
                       name={s.name}
                       phone={s.phone}
                       isActive={s.isActive}
+                      role={s.role}
                     />
                   )}
                 </TableCell>

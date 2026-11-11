@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { uz } from "../lib/i18n/uz";
+import { login } from "./helpers";
 
 // Eng kichik haqiqiy PNG (1×1, qizil) — rasm yuklashni sinash uchun
 const PNG_1PX = Buffer.from(
@@ -8,14 +9,6 @@ const PNG_1PX = Buffer.from(
 );
 
 // Seed'dagi demo do'kon (prisma/seed.ts). Avval: npm run db:local
-async function login(page: Page, phone: string) {
-  await page.goto("/login");
-  await page.locator("#phone").fill(phone);
-  await page.locator("#password").fill("demo1234");
-  await page.getByRole("button", { name: uz.auth.login }).click();
-  await page.waitForURL(/\/(dashboard|pos|admin)/);
-}
-
 test("egasi mahsulot qo'shadi, tahrirlaydi va arxivlaydi", async ({ page }) => {
   const name = `E2E mahsulot ${Date.now()}`;
   const barcode = String(Date.now()).slice(-12);

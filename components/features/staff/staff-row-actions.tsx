@@ -3,18 +3,20 @@
 import { useState, useTransition } from "react";
 import {
   resetStaffPasswordAction,
+  resetStaffPinAction,
   setStaffActiveAction,
 } from "@/app/(dashboard)/dashboard/staff/actions";
 import { Button } from "@/components/ui/button";
 import { t, uz } from "@/lib/i18n/uz";
 import { PasswordReveal } from "./password-reveal";
 
-type Props = { id: string; name: string; phone: string; isActive: boolean };
+type Props = { id: string; name: string; phone: string; isActive: boolean; role: string };
 
-export function StaffRowActions({ id, name, phone, isActive }: Props) {
+export function StaffRowActions({ id, name, phone, isActive, role }: Props) {
   const [pending, start] = useTransition();
-  const [password, setPassword] = useState<string>();
+  const [secret, setSecret] = useState<{ password?: string; pin?: string }>();
   const [error, setError] = useState<string>();
+  const isCashier = role === "CASHIER";
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -25,13 +27,20 @@ export function StaffRowActions({ id, name, phone, isActive }: Props) {
           disabled={pending || !isActive}
           onClick={() =>
             start(async () => {
-              const res = await resetStaffPasswordAction(id);
-              setPassword(res.password);
-              setError(res.error);
+              // Kassir — PIN; boshqalar — parol
+              if (isCashier) {
+                const res = await resetStaffPinAction(id);
+                setSecret(res.pin ? { pin: res.pin } : undefined);
+                setError(res.error);
+              } else {
+                const res = await resetStaffPasswordAction(id);
+                setSecret(res.password ? { password: res.password } : undefined);
+                setError(res.error);
+              }
             })
           }
         >
-          {uz.staff.resetPassword}
+          {isCashier ? uz.staff.resetPin : uz.staff.resetPassword}
         </Button>
         <Button
           size="sm"
@@ -46,12 +55,13 @@ export function StaffRowActions({ id, name, phone, isActive }: Props) {
         </Button>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {password && (
+      {secret && (
         <div className="w-full max-w-sm text-left">
           <PasswordReveal
-            title={t(uz.staff.newPasswordFor, { name })}
-            login={phone}
-            password={password}
+            title={t(isCashier ? uz.staff.newPinFor : uz.staff.newPasswordFor, { name })}
+            login={isCashier ? undefined : phone}
+            password={secret.password}
+            pin={secret.pin}
           />
         </div>
       )}

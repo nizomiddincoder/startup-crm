@@ -103,6 +103,10 @@ model User {
   phone             String    @unique
   // Ixtiyoriy: parolni tiklash havolasi uchun (kichik harflarda saqlanadi)
   email             String?   @unique
+  // Admin kirishi: login (masalan "admin") — platforma admini uchun. Telefon bilan ham kirish mumkin.
+  login             String?   @unique
+  // Kassir PIN kodi (4 xonali) — HMAC kaliti: butun tizimda yagona, parolsiz tekshiriladi
+  pinKey            String?   @unique
   passwordHash      String
   role              Role      @default(CASHIER)
   isActive          Boolean   @default(true)
