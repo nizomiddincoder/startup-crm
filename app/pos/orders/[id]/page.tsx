@@ -30,9 +30,19 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         title={`${uz.orders.number} ${order.number}`}
         actions={
-          <Link href="/pos/orders" className={buttonVariants({ variant: "outline" })}>
-            {uz.common.back}
-          </Link>
+          <>
+            <a
+              href={`/chek/order/${order.id}?print=1`}
+              target="_blank"
+              rel="noopener"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              {uz.orderReceipt.print}
+            </a>
+            <Link href="/pos/orders" className={buttonVariants({ variant: "outline" })}>
+              {uz.common.back}
+            </Link>
+          </>
         }
       />
       <div className="flex flex-wrap items-center gap-3 text-sm">

@@ -23,6 +23,7 @@ describe("bot", () => {
     const send = registerHandlers(bot);
     expect(typeof send).toBe("function");
     expect(botCommands.map((c) => c.command)).toEqual([
+      "start",
       "buyurtma",
       "buyurtmalarim",
       "xaridlarim",

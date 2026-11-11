@@ -31,6 +31,15 @@ export default async function TelegramPage() {
           {uz.telegram.notConfigured}
         </p>
       )}
+      {canReports && config.username && (
+        <section className="flex max-w-2xl flex-col gap-1 rounded-2xl border bg-card p-4 shadow-card">
+          <h2 className="font-semibold">{uz.telegram.customerLinkTitle}</h2>
+          <p className="font-mono text-sm break-all">
+            {`https://t.me/${config.username}?start=s_${user.tenantId}`}
+          </p>
+          <p className="text-sm text-muted-foreground">{uz.telegram.customerLinkHint}</p>
+        </section>
+      )}
       <TelegramLink
         {...prefs}
         canReports={canReports}

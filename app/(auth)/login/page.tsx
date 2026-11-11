@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BookOpen, ShoppingCart, Warehouse } from "lucide-react";
 import { LoginForm } from "@/components/features/auth/login-form";
 import { DEMO_PASSWORD, DEMO_USERS, isDemoMode } from "@/lib/demo";
@@ -52,6 +53,12 @@ export default function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">{uz.auth.loginSubtitle}</p>
           </div>
           <LoginForm demo={demo} />
+          <p className="text-center text-sm text-muted-foreground">
+            {uz.auth.noAccount}{" "}
+            <Link href="/register" className="font-semibold text-primary hover:underline">
+              {uz.auth.register}
+            </Link>
+          </p>
         </section>
       </div>
     </main>

@@ -20,6 +20,8 @@ const eslintConfig = [
       "next-env.d.ts",
       "playwright-report/**",
       "test-results/**",
+      // Lokal baza va uning brauzer kengaytmalari (Playwright profili) — kod emas
+      ".local-db/**",
     ],
   },
 ];

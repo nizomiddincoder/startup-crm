@@ -17,7 +17,20 @@ const nextConfig: NextConfig = {
   // Mahsulot rasmini yuklash server action orqali (sukut 1 MB — telefon rasmlari kattaroq)
   experimental: { serverActions: { bodySizeLimit: "8mb" } },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Telegram Mini App (/miniapp) Telegram ichida iframe'da ochiladi: u yerda SAMEORIGIN o'rniga
+    // faqat Telegram domenlariga ruxsat beriladi (frame-ancestors).
+    const miniAppHeaders = [
+      ...securityHeaders.filter((h) => h.key !== "X-Frame-Options"),
+      {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
+      },
+    ];
+    return [
+      { source: "/((?!miniapp(?:/|$)).*)", headers: securityHeaders },
+      { source: "/miniapp", headers: miniAppHeaders },
+      { source: "/miniapp/:path*", headers: miniAppHeaders },
+    ];
   },
 };
 

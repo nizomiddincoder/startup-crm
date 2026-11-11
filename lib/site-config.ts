@@ -10,6 +10,11 @@ export function siteUrl(): string {
   return raw.replace(/\/+$/, "");
 }
 
+/** Telegram Mini App (do'kon ilovasi) manzili. Telegram faqat https qabul qiladi. */
+export function miniAppUrl(): string {
+  return `${siteUrl()}/miniapp`;
+}
+
 const httpsUrl = (v: string | undefined) => {
   const value = v?.trim();
   return value && /^https:\/\/\S+$/.test(value) ? value : null;
